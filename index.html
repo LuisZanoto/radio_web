@@ -161,14 +161,23 @@ function saveCustom(list){ localStorage.setItem(KEY, JSON.stringify(list)); }
 let stations = [...DEFAULTS, ...loadCustom()];
 let current = 0, isPlaying=false, visMode=0;
 
-const audio=document.getElementById('audio'), canvas=document.getElementById('scope'), ctx=canvas.getContext('2d'), playBtn=document.getElementById('playBtn');
+let audio=document.getElementById('audio');
+const canvas=document.getElementById('scope'), ctx=canvas.getContext('2d'), playBtn=document.getElementById('playBtn');
 const listEl=document.getElementById('list'), nowPlaying=document.getElementById('nowPlaying'), statusEl=document.getElementById('status');
+const AUDIO_WATCHDOG_INTERVAL_MS=500, AUDIO_STALL_TIMEOUT_MS=2000, AUDIO_STARTUP_TIMEOUT_MS=10000, AUDIO_RECOVERY_COOLDOWN_MS=10000;
+let playbackGeneration=0, watchdogStartedAt=0, lastAudioProgressAt=0, lastObservedAudioTime=0, hasAudioProgress=false, lastWatchdogRecoveryAt=0, recoveryInProgress=false;
 function setPlaybackState(playing){
   isPlaying=playing;
   playBtn.textContent=playing?'⏸':'▶';
   playBtn.setAttribute('aria-label',playing?'Pausar rádio':'Reproduzir rádio');
   document.getElementById('spkL').classList.toggle('playing',playing);
   document.getElementById('spkR').classList.toggle('playing',playing);
+}
+function trackPlaybackStart(){
+  watchdogStartedAt=performance.now();
+  lastAudioProgressAt=watchdogStartedAt;
+  lastObservedAudioTime=audio.currentTime;
+  hasAudioProgress=false;
 }
 function reportPlaybackError(error){
   setPlaybackState(false);
@@ -194,26 +203,73 @@ function renderList(){
 }
 renderList();
 
-async function playStation(i){
+async function playStation(i, {cacheBust=false, watchdogRecovery=false}={}){
+  const generation=++playbackGeneration;
+  if(!watchdogRecovery) recoveryInProgress=false;
   current=i; renderList();
   nowPlaying.textContent='▶ '+stations[i].name;
-  statusEl.textContent='Conectando: '+(stations[i].orig||stations[i].url);
-  audio.src=stations[i].url; audio.volume=document.getElementById('vol').value/100;
+  statusEl.textContent=watchdogRecovery?'Áudio parou de avançar. Reconectando...':'Conectando: '+(stations[i].orig||stations[i].url);
   try{
+    const streamUrl=new URL(stations[i].url);
+    if(cacheBust) streamUrl.searchParams.set('_watchdog',Date.now());
+    audio.src=streamUrl.href;
+    audio.volume=document.getElementById('vol').value/100;
     await audio.play();
+    if(generation!==playbackGeneration) return;
+    recoveryInProgress=false;
     setPlaybackState(true);
+    trackPlaybackStart();
     statusEl.textContent='TOCANDO: '+stations[i].name;
-  }catch(e){ reportPlaybackError(e); }
+  }catch(e){
+    if(generation!==playbackGeneration) return;
+    recoveryInProgress=false;
+    reportPlaybackError(e);
+  }
 }
 playBtn.onclick=async()=>{
-  if(!audio.paused){ audio.pause(); setPlaybackState(false); statusEl.textContent='Pausado: '+stations[current].name; return; }
+  if(isPlaying&&(!audio.paused||recoveryInProgress)){ playbackGeneration++; recoveryInProgress=false; audio.pause(); setPlaybackState(false); statusEl.textContent='Pausado: '+stations[current].name; return; }
   if(!audio.src) return playStation(current);
-  try{ await audio.play(); setPlaybackState(true); statusEl.textContent='TOCANDO: '+stations[current].name; }
-  catch(e){ reportPlaybackError(e); }
+  const generation=++playbackGeneration;
+  recoveryInProgress=false;
+  try{
+    await audio.play();
+    if(generation!==playbackGeneration) return;
+    setPlaybackState(true);
+    trackPlaybackStart();
+    statusEl.textContent='TOCANDO: '+stations[current].name;
+  }catch(e){
+    if(generation===playbackGeneration) reportPlaybackError(e);
+  }
 };
-document.getElementById('stopBtn').onclick=()=>{ audio.pause(); audio.removeAttribute('src'); audio.load(); setPlaybackState(false); statusEl.textContent='Rádio parada.'; };
+document.getElementById('stopBtn').onclick=()=>{ playbackGeneration++; recoveryInProgress=false; audio.pause(); audio.removeAttribute('src'); audio.load(); setPlaybackState(false); statusEl.textContent='Rádio parada.'; };
 document.getElementById('nextBtn').onclick=()=>playStation((current+1)%stations.length);
 document.getElementById('prevBtn').onclick=()=>playStation((current-1+stations.length)%stations.length);
+function checkAudioPlayback(){
+  if(!isPlaying||audio.paused||audio.ended||recoveryInProgress) return;
+  const now=performance.now(), audioTime=audio.currentTime;
+  if(audioTime>lastObservedAudioTime+0.01){
+    lastObservedAudioTime=audioTime;
+    lastAudioProgressAt=now;
+    hasAudioProgress=true;
+    return;
+  }
+  const stalledFor=hasAudioProgress?now-lastAudioProgressAt:now-watchdogStartedAt;
+  const timeout=hasAudioProgress?AUDIO_STALL_TIMEOUT_MS:AUDIO_STARTUP_TIMEOUT_MS;
+  if(stalledFor<timeout||(lastWatchdogRecoveryAt&&now-lastWatchdogRecoveryAt<AUDIO_RECOVERY_COOLDOWN_MS)) return;
+  lastWatchdogRecoveryAt=now;
+  recoveryInProgress=true;
+  const oldAudio=audio, freshAudio=document.createElement('audio');
+  freshAudio.id='audio';
+  freshAudio.preload='none';
+  freshAudio.playsInline=true;
+  oldAudio.pause();
+  oldAudio.removeAttribute('src');
+  oldAudio.load();
+  oldAudio.replaceWith(freshAudio);
+  audio=freshAudio;
+  playStation(current,{cacheBust:true,watchdogRecovery:true});
+}
+setInterval(checkAudioPlayback,AUDIO_WATCHDOG_INTERVAL_MS);
 function toggleVis(){ visMode=(visMode+1)%3; document.getElementById('modeLabel').textContent=['OSCILOSCÓPIO','BARRAS','CIRCULAR'][visMode]; }
 document.getElementById('visBtn').onclick=toggleVis;
 document.getElementById('visBtn2').onclick=toggleVis;
