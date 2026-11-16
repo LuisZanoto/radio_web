@@ -3,99 +3,209 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#111827">
-  <title>Melody FM — Monitor de áudio</title>
+  <meta name="theme-color" content="#071321">
+  <title>Radio Web — Player e osciloscópio</title>
   <style>
     :root {
       color-scheme: dark;
       font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-      background: #111827;
-      color: #f9fafb;
+      background: #071321;
+      color: #dcecff;
+      font-synthesis: none;
     }
+
+    * { box-sizing: border-box; }
 
     body {
-      box-sizing: border-box;
-      display: grid;
+      min-width: 320px;
       min-height: 100vh;
       margin: 0;
-      padding: 24px;
-      place-items: center;
+      padding: 28px 18px 48px;
+      background: radial-gradient(ellipse at top, #12375d, #071321 58%);
     }
 
-    main {
-      width: min(100%, 520px);
-      padding: 32px;
-      border: 1px solid #374151;
-      border-radius: 20px;
-      background: #1f2937;
-      box-shadow: 0 20px 50px #0004;
+    main { width: min(100%, 900px); margin: 0 auto; }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 22px;
     }
 
     h1 {
-      margin: 0 0 8px;
-      font-size: 1.8rem;
+      margin: 0;
+      color: #b8e4ff;
+      font: 800 clamp(1.4rem, 4vw, 2rem)/1.1 "Segoe UI", sans-serif;
+      letter-spacing: .08em;
+      text-shadow: 0 0 16px #2aa8ff55;
+    }
+    h2 { margin: 0 0 12px; font-size: 1.1rem; }
+    p { color: #b7cde3; line-height: 1.5; }
+    .card {
+      margin: 16px 0;
+      padding: 20px;
+      border: 1px solid #28547b;
+      border-radius: 12px;
+      background: linear-gradient(145deg, #102740, #0b1b2c);
+      box-shadow: 0 16px 40px #0006, inset 0 1px #7bc8ff1a;
     }
 
-    p,
-    li {
-      color: #cbd5e1;
-      line-height: 1.55;
+    #playerStatus, #catalogStatus {
+      min-height: 1.5em;
+      margin: 8px 0 0;
+      color: #b7cde3;
     }
 
-    ol {
-      padding-left: 22px;
+    #playerStatus[data-state="playing"] { color: #8df0c0; }
+    #playerStatus[data-state="error"] { color: #ff9aab; }
+
+    .address-row, .search-row, .player-controls, .scale-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
     }
 
-    li + li {
-      margin-top: 8px;
+    .address-row { margin-top: 12px; }
+    input[type="url"], select {
+      min-width: 180px;
+      min-height: 42px;
+      padding: 9px 11px;
+      border: 1px solid #32658f;
+      border-radius: 6px;
+      background: #071727;
+      color: #e6f4ff;
+      font: inherit;
     }
+    input[type="url"] { flex: 1; }
+    select { flex: 0 1 210px; }
 
-    a {
-      color: #fdba74;
-    }
-
-    .button {
-      display: inline-block;
-      margin-top: 12px;
-      padding: 11px 18px;
-      border-radius: 10px;
-      background: #f97316;
-      color: #111827;
+    button {
+      min-height: 42px;
+      padding: 9px 14px;
+      border: 0;
+      border-radius: 6px;
+      background: linear-gradient(#2c8bc5, #17639a);
+      color: #f2faff;
+      font: inherit;
       font-weight: 700;
-      text-decoration: none;
+      cursor: pointer;
+      box-shadow: inset 0 1px #bdeaff55, 0 2px 6px #0005;
     }
 
-    .note {
-      margin-top: 22px;
-      color: #94a3b8;
-      font-size: 0.9rem;
+    button.secondary { background: linear-gradient(#294d6b, #18344e); color: #dcecff; }
+    button:disabled { cursor: wait; opacity: .6; }
+
+    .hint { margin: 10px 0 0; color: #90aec9; font-size: .86rem; }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 190px;
+      margin: 14px 0 8px;
+      border: 1px solid #28547b;
+      border-radius: 6px;
+      background: #06111e;
+      box-shadow: inset 0 0 20px #0008;
+    }
+
+    .scale-row { justify-content: flex-end; color: #b7cde3; font-size: .88rem; }
+    input[type="range"] { width: 180px; accent-color: #42b9ff; }
+    audio { display: block; width: 100%; margin-top: 14px; }
+    #siteFrame {
+      display: none;
+      width: 100%;
+      min-height: 430px;
+      margin-top: 14px;
+      border: 1px solid #32658f;
+      border-radius: 10px;
+      background: #fff;
+    }
+
+    .search-row { justify-content: space-between; }
+    #stationList { display: grid; gap: 9px; margin: 14px 0 0; padding: 0; list-style: none; }
+    .station {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border: 1px solid #244764;
+      border-radius: 10px;
+      background: #091a2b;
+    }
+    .station strong { display: block; overflow-wrap: anywhere; }
+    .station small { display: block; margin-top: 4px; color: #90aec9; overflow-wrap: anywhere; }
+    .station-actions { display: flex; gap: 8px; }
+    .station-actions button { min-width: 82px; }
+    .station-actions button.secondary { background: linear-gradient(#294d6b, #18344e); color: #dcecff; }
+
+    @media (max-width: 520px) {
+      body { padding: 18px 12px 32px; }
+      .card { padding: 15px; }
+      .address-row > * { width: 100%; }
+      .station { grid-template-columns: 1fr; }
+      .station-actions { flex-direction: column; }
+      .station-actions button { width: 100%; }
     }
   </style>
 </head>
 <body>
   <main>
-    <h1>Melody FM — Monitor de áudio</h1>
-    <p>
-      O monitor é uma extensão do Chrome ou Edge. O arquivo HTML sozinho não
-      consegue observar o player de outro site.
-    </p>
+    <header>
+      <h1>RADIO WEB <small style="font-size:.55em;letter-spacing:.14em;color:#69caff">PLAYER / LIVE SCOPE</small></h1>
+    </header>
 
-    <ol>
-      <li>Abra <code>chrome://extensions</code> (Chrome) ou <code>edge://extensions</code> (Edge).</li>
-      <li>Ative o modo do desenvolvedor e escolha <strong>Carregar sem compactação</strong>.</li>
-      <li>Selecione a pasta <code>extension</code> deste projeto.</li>
-      <li>Abra a rádio e use o ícone da extensão para iniciar ou parar o áudio.</li>
-    </ol>
+    <section class="card" aria-labelledby="playerHeading">
+      <h2 id="playerHeading">Ouvir uma rádio</h2>
+      <label for="stationAddress">Endereço do stream ou do site</label>
+      <div class="address-row">
+        <input id="stationAddress" type="url" inputmode="url"
+          placeholder="https://..." autocomplete="url">
+        <select id="addressMode" aria-label="Tipo de endereço">
+          <option value="stream">Transmissão de áudio (stream)</option>
+          <option value="website">Site da rádio / YouTube</option>
+        </select>
+      </div>
+      <div class="player-controls">
+        <button id="playButton" type="button">Tocar e monitorar</button>
+        <button id="stopButton" class="secondary" type="button" disabled>Parar</button>
+        <button id="favoriteButton" class="secondary" type="button">Salvar favorito</button>
+      </div>
+      <p class="hint">Sites podem bloquear incorporação. Links do YouTube usam o player oficial com vídeo visível; reprodução somente em áudio não é suportada.</p>
+      <p id="playerStatus" role="status" aria-live="polite" data-state="stopped">Pronto para tocar.</p>
+      <canvas id="scope" aria-label="Osciloscópio do áudio da rádio"></canvas>
+      <div class="scale-row">
+        <label for="verticalScale">Vertical</label>
+        <input id="verticalScale" type="range" min="0.5" max="6" step="0.1" value="1.5">
+      </div>
+      <audio id="audioPlayer" controls></audio>
+      <iframe id="siteFrame" title="Site da rádio ou vídeo do YouTube"
+        allow="autoplay; encrypted-media; picture-in-picture; fullscreen; web-share"
+        referrerpolicy="strict-origin-when-cross-origin"></iframe>
+    </section>
 
-    <a class="button" href="https://www.melodyfm.com.br/aovivo/audio" target="_blank" rel="noopener">
-      Abrir a rádio
-    </a>
+    <section class="card" aria-labelledby="stationsHeading">
+      <div class="search-row">
+        <div>
+          <h2 id="stationsHeading">Lista inicial — rádios rock/pop internacionais</h2>
+          <p class="hint">Até 20 estações online; prioriza rock/pop dos anos 80.</p>
+        </div>
+        <button id="searchButton" class="secondary" type="button">Buscar rádios</button>
+      </div>
+      <p id="catalogStatus" role="status" aria-live="polite"></p>
+      <ol id="stationList" aria-label="Estações encontradas"></ol>
+    </section>
 
-    <p class="note">
-      A extensão tenta retomar o player e recarrega a página quando o tempo do áudio
-      não avança por 5 segundos. Ela detecta o avanço do player, não silêncio
-      intencional ou volume inaudível da transmissão.
-    </p>
+    <section class="card" aria-labelledby="favoritesHeading">
+      <h2 id="favoritesHeading">Minhas rádios favoritas</h2>
+      <p class="hint">Salve aqui os endereços de streams ou sites que você adicionou.</p>
+      <p id="favoriteStatus" role="status" aria-live="polite"></p>
+      <ol id="favoriteList" aria-label="Rádios favoritas"></ol>
+    </section>
   </main>
+  <script src="extension/player.js"></script>
 </body>
 </html>

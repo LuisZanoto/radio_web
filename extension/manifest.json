@@ -1,19 +1,14 @@
 {
   "manifest_version": 3,
-  "name": "Melody FM - Monitor de áudio",
-  "version": "1.0.0",
-  "description": "Monitora o avanço do player da Melody FM e reconecta quando ele trava.",
-  "permissions": ["storage", "tabs"],
-  "host_permissions": ["https://www.melodyfm.com.br/aovivo/audio*"],
+  "name": "Radio Web - Player e osciloscópio",
+  "version": "1.1.0",
+  "description": "Toca e monitora rádios online e busca estações rock/pop.",
+  "permissions": ["storage", "tabs", "tabCapture"],
+  "host_permissions": ["https://de1.api.radio-browser.info/*"],
   "action": {
-    "default_title": "Monitor da Melody FM",
-    "default_popup": "popup.html"
+    "default_title": "Abrir Radio Web"
   },
-  "content_scripts": [
-    {
-      "matches": ["https://www.melodyfm.com.br/aovivo/audio*"],
-      "js": ["content.js"],
-      "run_at": "document_idle"
-    }
-  ]
+  "background": {
+    "service_worker": "background.js"
+  }
 }
