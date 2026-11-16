@@ -75,6 +75,16 @@
     return url.href;
   }
 
+  function getKnownAudioStream(url) {
+    const parsedUrl = new URL(url);
+    const hostname = parsedUrl.hostname.toLowerCase().replace(/^www\./, "");
+    const pathname = parsedUrl.pathname.replace(/\/+$/, "").toLowerCase();
+    if (hostname === "melodyfm.com.br" && pathname === "/aovivo/audio") {
+      return "https://sc4s.cdn.upx.com:8080/stream";
+    }
+    return null;
+  }
+
   function getYouTubeVideoId(value) {
     const url = new URL(value);
     const host = url.hostname.toLowerCase();
@@ -160,15 +170,22 @@
   async function playStation() {
     let url;
     let videoId;
+    let isKnownAudioPage = false;
     try {
       url = normalizeHttpUrl(addressInput.value);
       videoId = getYouTubeVideoId(url);
+      const audioStreamUrl = getKnownAudioStream(url);
+      if (audioStreamUrl) {
+        isKnownAudioPage = true;
+        url = audioStreamUrl;
+        addressInput.value = url;
+      }
     } catch (error) {
       setPlayerStatus(error.message, "error");
       return;
     }
 
-    const mode = videoId ? "website" : addressMode.value;
+    const mode = videoId ? "website" : isKnownAudioPage ? "stream" : addressMode.value;
     addressMode.value = mode;
     activeUrl = url;
     activeMode = mode;
@@ -252,15 +269,19 @@
       } else {
         setPlayerStatus(
           mode === "stream"
-            ? "Rádio tocando; o navegador não permite monitorar as ondas nesta página. Abra pela extensão para ativar o osciloscópio."
+            ? "Rádio tocando; o osciloscópio não está disponível nesta página hospedada. Abra o player pela extensão Chrome/Edge para monitorar as ondas."
             : "Site aberto; a captura do áudio do site requer a extensão Chrome/Edge.",
           "unmonitored"
         );
       }
     } catch (error) {
+      const unsupportedAudioSource = audioPlayer.error?.code === 4;
+      const message = unsupportedAudioSource
+        ? "Este endereço não é um stream de áudio compatível. Para páginas de rádio, selecione “Site da rádio / YouTube”; alguns sites bloqueiam a incorporação."
+        : error.message;
       monitoring = false;
       await stopPlayer();
-      setPlayerStatus(`Não foi possível iniciar: ${error.message}`, "error");
+      setPlayerStatus(`Não foi possível iniciar: ${message}`, "error");
     } finally {
       playButton.disabled = false;
     }
