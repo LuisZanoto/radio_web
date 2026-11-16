@@ -19,6 +19,9 @@
   const siteFrame = document.querySelector("#siteFrame");
   const canvas = document.querySelector("#scope");
   const verticalScale = document.querySelector("#verticalScale");
+  const detectAudioInputsButton = document.querySelector("#detectAudioInputsButton");
+  const audioInputDevice = document.querySelector("#audioInputDevice");
+  const monitorAudioInputButton = document.querySelector("#monitorAudioInputButton");
   const extensionStorage = typeof chrome !== "undefined" ? chrome.storage?.local : null;
 
   async function storageGet(defaults) {
@@ -163,6 +166,123 @@
     }
   }
 
+  function releaseCapture() {
+    if (tabSource) {
+      tabSource.disconnect();
+      tabSource = null;
+    }
+    analyzer = null;
+    if (tabStream) {
+      for (const track of tabStream.getTracks()) track.stop();
+      tabStream = null;
+    }
+    tabCaptureKind = "";
+  }
+
+  async function detectAudioInputs() {
+    detectAudioInputsButton.disabled = true;
+    try {
+      if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+        throw new Error("A captura de entradas exige uma página HTTPS e suporte do navegador.");
+      }
+
+      const permissionStream = await navigator.mediaDevices.getUserMedia({audio: true});
+      for (const track of permissionStream.getTracks()) track.stop();
+
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const inputs = devices.filter(device => device.kind === "audioinput");
+      audioInputDevice.replaceChildren();
+      for (const device of inputs) {
+        const option = document.createElement("option");
+        option.value = device.deviceId;
+        option.textContent = device.label || "Entrada de áudio";
+        audioInputDevice.append(option);
+      }
+
+      if (!inputs.length) {
+        audioInputDevice.add(new Option("Nenhuma entrada de áudio encontrada", ""));
+        audioInputDevice.disabled = true;
+        monitorAudioInputButton.disabled = true;
+        throw new Error("Nenhuma entrada de áudio foi encontrada no Windows.");
+      }
+
+      const stereoMix = inputs.findIndex(device =>
+        /stereo mix|mixagem est[eé]reo|what u hear|o que voc[eê] ouve/i.test(device.label)
+      );
+      if (stereoMix >= 0) audioInputDevice.selectedIndex = stereoMix;
+      audioInputDevice.disabled = false;
+      monitorAudioInputButton.disabled = false;
+      setPlayerStatus(
+        stereoMix >= 0
+          ? "Mixagem estéreo encontrada. Inicie a rádio e clique em “Monitorar entrada”."
+          : "Entradas encontradas. Selecione uma entrada e clique em “Monitorar entrada”.",
+        "unmonitored"
+      );
+    } catch (error) {
+      setPlayerStatus(`Não foi possível listar as entradas de áudio: ${error.message}`, "error");
+    } finally {
+      detectAudioInputsButton.disabled = false;
+    }
+  }
+
+  async function monitorAudioInput() {
+    const deviceId = audioInputDevice.value;
+    const selectedOption = audioInputDevice.selectedOptions[0];
+    if (!deviceId) {
+      setPlayerStatus("Selecione uma entrada de áudio do Windows.", "error");
+      return;
+    }
+    if (!activeUrl || !audioContext) {
+      setPlayerStatus("Inicie a rádio antes de monitorar uma entrada de áudio.", "error");
+      return;
+    }
+
+    monitorAudioInputButton.disabled = true;
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          deviceId: {exact: deviceId},
+          autoGainControl: false,
+          echoCancellation: false,
+          noiseSuppression: false
+        }
+      });
+      if (!activeUrl || !audioContext) {
+        for (const track of stream.getTracks()) track.stop();
+        return;
+      }
+
+      await audioContext.resume();
+      releaseCapture();
+      const source = audioContext.createMediaStreamSource(stream);
+      const nextAnalyzer = audioContext.createAnalyser();
+      nextAnalyzer.fftSize = 2048;
+      source.connect(nextAnalyzer);
+      tabSource = source;
+      analyzer = nextAnalyzer;
+      tabStream = stream;
+      tabCaptureKind = "input";
+      for (const track of stream.getAudioTracks()) {
+        track.addEventListener("ended", () => {
+          if (monitoring && tabCaptureKind === "input") {
+            monitoring = false;
+            setPlayerStatus("A entrada de áudio foi desconectada pelo Windows.", "error");
+          }
+        }, {once: true});
+      }
+      monitoring = true;
+      reconnecting = false;
+      lastSignalAt = performance.now();
+      setPlayerStatus(`Monitorando a entrada “${selectedOption.textContent}”.`, "buffering");
+    } catch (error) {
+      for (const track of stream?.getTracks() || []) track.stop();
+      setPlayerStatus(`Não foi possível monitorar essa entrada: ${error.message}`, "error");
+    } finally {
+      monitorAudioInputButton.disabled = false;
+    }
+  }
+
   async function saveCurrentStation(url, mode) {
     await storageSet({currentStation: {url, mode}});
   }
@@ -187,6 +307,7 @@
 
     const mode = videoId ? "website" : isKnownAudioPage ? "stream" : addressMode.value;
     addressMode.value = mode;
+    if (tabCaptureKind === "input") releaseCapture();
     activeUrl = url;
     activeMode = mode;
     activeFrameUrl = videoId ? getYouTubeEmbedUrl(videoId) : url;
@@ -269,8 +390,8 @@
       } else {
         setPlayerStatus(
           mode === "stream"
-            ? "Rádio tocando; o osciloscópio não está disponível nesta página hospedada. Abra o player pela extensão Chrome/Edge para monitorar as ondas."
-            : "Site aberto; a captura do áudio do site requer a extensão Chrome/Edge.",
+            ? "Rádio tocando; para exibir as ondas nesta página, permita o microfone e monitore uma entrada do Windows (como Mixagem estéreo), ou use a extensão Chrome/Edge."
+            : "Site aberto; permita o microfone e monitore uma entrada do Windows (como Mixagem estéreo), ou use a extensão Chrome/Edge para capturar o áudio da aba.",
           "unmonitored"
         );
       }
@@ -301,15 +422,7 @@
     activeMode = "stream";
     tabCaptureKind = "";
 
-    if (tabSource) {
-      tabSource.disconnect();
-      tabSource = null;
-    }
-    analyzer = null;
-    if (tabStream) {
-      for (const track of tabStream.getTracks()) track.stop();
-      tabStream = null;
-    }
+    releaseCapture();
     let closeError = null;
     if (audioContext && audioContext.state !== "closed") {
       try {
@@ -558,22 +671,26 @@
       reconnecting = false;
       setPlayerStatus("Sinal de áudio detectado — monitorando.", "playing");
     } else if (monitoring && !reconnecting && now - lastSignalAt >= STALL_AFTER_MS) {
-      reconnecting = true;
       lastSignalAt = now;
-      setPlayerStatus("Sem ondas por 5 segundos. Reconectando a rádio nesta página...", "buffering");
-      if (activeMode === "stream") {
-        audioPlayer.pause();
-        audioPlayer.src = activeUrl;
-        audioPlayer.load();
-        audioPlayer.play().catch(error => {
-          setPlayerStatus(`Falha ao retomar o stream: ${error.message}`, "error");
-        });
+      if (tabCaptureKind === "input") {
+        setPlayerStatus("Sem sinal na entrada selecionada. Confira a Mixagem estéreo e o volume de saída do Windows.", "buffering");
       } else {
-        siteFrame.src = activeFrameUrl;
+        reconnecting = true;
+        setPlayerStatus("Sem ondas por 5 segundos. Reconectando a rádio nesta página...", "buffering");
+        if (activeMode === "stream") {
+          audioPlayer.pause();
+          audioPlayer.src = activeUrl;
+          audioPlayer.load();
+          audioPlayer.play().catch(error => {
+            setPlayerStatus(`Falha ao retomar o stream: ${error.message}`, "error");
+          });
+        } else {
+          siteFrame.src = activeFrameUrl;
+        }
+        window.setTimeout(() => {
+          reconnecting = false;
+        }, 1200);
       }
-      window.setTimeout(() => {
-        reconnecting = false;
-      }, 1200);
     }
 
     context.beginPath();
@@ -600,6 +717,8 @@
 
   playButton.addEventListener("click", playStation);
   stopButton.addEventListener("click", stopPlayer);
+  detectAudioInputsButton.addEventListener("click", detectAudioInputs);
+  monitorAudioInputButton.addEventListener("click", monitorAudioInput);
   favoriteButton.addEventListener("click", addFavorite);
   searchButton.addEventListener("click", searchStations);
   verticalScale.addEventListener("input", () => {
