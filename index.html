@@ -1,221 +1,267 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#071321">
-  <title>Radio Web — Player e osciloscópio</title>
-  <style>
-    :root {
-      color-scheme: dark;
-      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-      background: #071321;
-      color: #dcecff;
-      font-synthesis: none;
-    }
-
-    * { box-sizing: border-box; }
-
-    body {
-      min-width: 320px;
-      min-height: 100vh;
-      margin: 0;
-      padding: 28px 18px 48px;
-      background: radial-gradient(ellipse at top, #12375d, #071321 58%);
-    }
-
-    main { width: min(100%, 900px); margin: 0 auto; }
-
-    header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      margin-bottom: 22px;
-    }
-
-    h1 {
-      margin: 0;
-      color: #b8e4ff;
-      font: 800 clamp(1.4rem, 4vw, 2rem)/1.1 "Segoe UI", sans-serif;
-      letter-spacing: .08em;
-      text-shadow: 0 0 16px #2aa8ff55;
-    }
-    h2 { margin: 0 0 12px; font-size: 1.1rem; }
-    p { color: #b7cde3; line-height: 1.5; }
-    .card {
-      margin: 16px 0;
-      padding: 20px;
-      border: 1px solid #28547b;
-      border-radius: 12px;
-      background: linear-gradient(145deg, #102740, #0b1b2c);
-      box-shadow: 0 16px 40px #0006, inset 0 1px #7bc8ff1a;
-    }
-
-    #playerStatus, #catalogStatus {
-      min-height: 1.5em;
-      margin: 8px 0 0;
-      color: #b7cde3;
-    }
-
-    #playerStatus[data-state="playing"] { color: #8df0c0; }
-    #playerStatus[data-state="error"] { color: #ff9aab; }
-    #playerStatus[data-state="unmonitored"] { color: #ffd27c; }
-
-    .address-row, .search-row, .player-controls, .scale-row, .audio-input-controls {
-      display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    .address-row { margin-top: 12px; }
-    input[type="url"], select {
-      min-width: 180px;
-      min-height: 42px;
-      padding: 9px 11px;
-      border: 1px solid #32658f;
-      border-radius: 6px;
-      background: #071727;
-      color: #e6f4ff;
-      font: inherit;
-    }
-    input[type="url"] { flex: 1; }
-    select { flex: 0 1 210px; }
-    .audio-input-controls select { flex: 1 1 260px; }
-
-    button {
-      min-height: 42px;
-      padding: 9px 14px;
-      border: 0;
-      border-radius: 6px;
-      background: linear-gradient(#2c8bc5, #17639a);
-      color: #f2faff;
-      font: inherit;
-      font-weight: 700;
-      cursor: pointer;
-      box-shadow: inset 0 1px #bdeaff55, 0 2px 6px #0005;
-    }
-
-    button.secondary { background: linear-gradient(#294d6b, #18344e); color: #dcecff; }
-    button:disabled { cursor: wait; opacity: .6; }
-
-    .hint { margin: 10px 0 0; color: #90aec9; font-size: .86rem; }
-
-    canvas {
-      display: block;
-      width: 100%;
-      height: 190px;
-      margin: 14px 0 8px;
-      border: 1px solid #28547b;
-      border-radius: 6px;
-      background: #06111e;
-      box-shadow: inset 0 0 20px #0008;
-    }
-
-    .scale-row { justify-content: flex-end; color: #b7cde3; font-size: .88rem; }
-    input[type="range"] { width: 180px; accent-color: #42b9ff; }
-    audio { display: block; width: 100%; margin-top: 14px; }
-    #siteFrame {
-      display: none;
-      width: 100%;
-      min-height: 430px;
-      margin-top: 14px;
-      border: 1px solid #32658f;
-      border-radius: 10px;
-      background: #fff;
-    }
-
-    .search-row { justify-content: space-between; }
-    #stationList { display: grid; gap: 9px; margin: 14px 0 0; padding: 0; list-style: none; }
-    .station {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      align-items: center;
-      gap: 12px;
-      padding: 12px;
-      border: 1px solid #244764;
-      border-radius: 10px;
-      background: #091a2b;
-    }
-    .station strong { display: block; overflow-wrap: anywhere; }
-    .station small { display: block; margin-top: 4px; color: #90aec9; overflow-wrap: anywhere; }
-    .station-actions { display: flex; gap: 8px; }
-    .station-actions button { min-width: 82px; }
-    .station-actions button.secondary { background: linear-gradient(#294d6b, #18344e); color: #dcecff; }
-
-    @media (max-width: 520px) {
-      body { padding: 18px 12px 32px; }
-      .card { padding: 15px; }
-      .address-row > * { width: 100%; }
-      .station { grid-template-columns: 1fr; }
-      .station-actions { flex-direction: column; }
-      .station-actions button { width: 100%; }
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEON HEAD - Web Player Futurista</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',system-ui,sans-serif}
+  body{min-height:100vh;background:radial-gradient(ellipse at 50% 0%, #123a1e 0%, #050a06 55%, #000 100%);color:#d6ffe0;display:flex;flex-direction:column;align-items:center;padding:14px;overflow-x:hidden}
+  .top{width:min(920px,100%);display:flex;justify-content:space-between;align-items:center;padding:6px 4px 12px}
+  .logo{font-weight:900;letter-spacing:3px;font-size:18px}.logo span{color:#2bff7a}
+  .logo small{display:block;font-size:10px;letter-spacing:3px;color:#7dff9a;font-weight:400}
+  .badge{background:#122a17;border:1px solid #2bff7a;padding:6px 10px;border-radius:20px;font-size:11px}
+  /* PALCO */
+  .stage{width:min(920px,100%);display:grid;grid-template-columns:110px 1fr 110px;gap:14px;align-items:stretch}
+  /* SPEAKERS - CSS puro */
+  .speaker{
+    background:linear-gradient(180deg,#7dff6a 0%,#1ee15a 25%,#0a8a2f 70%,#054d1a 100%);
+    border-radius:60px 60px 28px 28px;position:relative;
+    box-shadow:inset 0 3px 0 rgba(255,255,255,.7), inset 0 -10px 20px rgba(0,0,0,.35), 0 18px 40px rgba(0,0,0,.6);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:20px 0;overflow:hidden;
+  }
+  .speaker::before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.35) 18%,transparent 45%)}
+  .driver{width:72px;height:72px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff 0%,#c8c8c8 25%,#555 55%,#111 80%);border:3px solid #222;display:grid;place-items:center;box-shadow:0 6px 14px rgba(0,0,0,.5);position:relative;z-index:1}
+  .driver::after{content:"";width:26px;height:26px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#444,#000);box-shadow:inset 0 2px 4px #000}
+  .driver.small{width:58px;height:58px}.driver.small::after{width:18px;height:18px}
+  .speaker.playing .driver{animation:pulse .4s infinite alternate}
+  @keyframes pulse{from{transform:scale(1)}to{transform:scale(1.08)}}
+  .led{width:10px;height:10px;border-radius:50%;background:#2bff7a;box-shadow:0 0 12px #2bff7a}
+  /* CABEÇA - CSS puro */
+  .head-wrap{position:relative;filter:drop-shadow(0 20px 40px rgba(0,0,0,.6))}
+  .head{
+    background:linear-gradient(180deg,#8dff6a 0%,#2fe05a 18%,#12a832 45%,#0a7a24 75%,#065e1a 100%);
+    border-radius:48% 48% 42% 42% / 38% 38% 58% 58%;
+    min-height:420px;position:relative;overflow:hidden;
+    box-shadow:inset 0 4px 0 rgba(255,255,255,.6), inset 0 -20px 40px rgba(0,0,0,.3), inset -20px 0 40px rgba(0,0,0,.15);
+  }
+  .head::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 30% 20%,rgba(255,255,255,.45),transparent 35%),radial-gradient(ellipse at 75% 30%,rgba(255,255,255,.25),transparent 30%)}
+  .head-top{display:flex;justify-content:center;gap:8px;padding:14px 0 2px;position:relative;z-index:2}
+  .pill{background:#0b2a12;color:#7dff9a;border:1px solid #2bff7a;border-radius:8px;padding:4px 8px;font-size:11px}
+  .controls{position:relative;z-index:3;display:flex;justify-content:center;gap:10px;margin:8px 0 10px}
+  .controls button{width:46px;height:46px;border-radius:50%;border:0;cursor:pointer;font-size:18px;background:radial-gradient(circle at 35% 30%,#fff,#c9a6ff 35%,#7a3cff 75%);box-shadow:0 4px 0 #2a0a5a,0 6px 12px rgba(0,0,0,.4)}
+  .controls #playBtn{width:92px;height:92px;font-size:36px}
+  .controls button:active{transform:translateY(3px)}
+  .controls button.gold{background:radial-gradient(circle at 35% 30%,#fff,#ffe27a,#ff9800)}
+  /* TELA / OSCILOSCOPIO */
+  .screen{
+    margin:0 26px;position:relative;z-index:2;height:188px;border-radius:14px;overflow:hidden;
+    background:#000;border:4px solid #ff2a1a;box-shadow:inset 0 0 30px #000,0 0 0 2px rgba(255,255,255,.2);
+  }
+  canvas{width:100%;height:100%;display:block;background:#020a02}
+  .lcd{position:absolute;left:8px;right:8px;bottom:6px;background:rgba(0,20,0,.9);border:1px solid #2bff7a;border-radius:6px;padding:5px 7px;display:flex;justify-content:space-between;font-size:11px;color:#aaffff;z-index:3}
+  /* ROSTO */
+  .face{position:relative;z-index:2;height:150px;margin-top:6px}
+  .eye{position:absolute;top:28px;width:92px;height:14px;border-radius:50%;border-bottom:4px solid rgba(0,40,10,.8);transform:rotate(-3deg)}
+  .eye.left{left:62px}.eye.right{right:62px;transform:rotate(3deg)}
+  .nose{position:absolute;left:50%;top:32px;transform:translateX(-50%);width:58px;height:78px;background:linear-gradient(180deg,#2fe05a,#0a7a24);border-radius:40% 40% 55% 55%;box-shadow:inset -6px 0 10px rgba(0,0,0,.25), inset 4px 0 8px rgba(255,255,255,.3)}
+  .nose::after{content:"";position:absolute;bottom:6px;left:50%;transform:translateX(-50%);width:26px;height:10px;border-radius:50%;background:rgba(0,30,0,.25)}
+  .mouth{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);width:150px;height:22px;border-radius:0 0 80px 80px;border-bottom:5px solid rgba(0,40,10,.7)}
+  .mouth::before{content:"";position:absolute;left:50%;top:-6px;transform:translateX(-50%);width:70px;height:8px;border-radius:50%;background:rgba(0,40,10,.18)}
+  /* PAINEL */
+  .panel{width:min(920px,100%);margin-top:14px;background:rgba(6,20,10,.92);border:1px solid #2bff7a;border-radius:16px;padding:14px;backdrop-filter:blur(8px)}
+  .panel-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+  .panel-head h2{font-size:13px;letter-spacing:2px}.panel-head h2 span{color:#2bff7a}
+  .tabs{display:flex;gap:6px}
+  .tabs button{background:#122a17;border:1px solid #2bff7a;color:#d6ffe0;padding:7px 12px;border-radius:20px;cursor:pointer;font-size:12px}
+  .tabs button.active{background:#2bff7a;color:#002a10;font-weight:800}
+  .station{display:flex;gap:10px;align-items:center;padding:10px;border-radius:10px;cursor:pointer;border:1px solid transparent}
+  .station:hover{background:#0f2a15}
+  .station.active{background:#2bff7a;color:#002a10;font-weight:700}
+  .station .num{background:#000;color:#2bff7a;padding:4px 8px;border-radius:6px;font-size:11px}
+  .station.active .num{background:#002a10;color:#fff}
+  .station small{margin-left:auto;opacity:.7;font-size:11px}
+  .del{background:#ff3b30;color:#fff;border:0;padding:5px 8px;border-radius:8px;cursor:pointer;font-size:11px}
+  .add-form{display:none;margin-top:12px;background:#0a1f0f;border:1px dashed #2bff7a;border-radius:12px;padding:12px;gap:8px}
+  .add-form.show{display:flex;flex-wrap:wrap}
+  .add-form input{flex:1;min-width:180px;background:#000;color:#d6ffe0;border:1px solid #2bff7a;border-radius:8px;padding:10px}
+  .add-form button{background:#2bff7a;border:0;padding:10px 16px;border-radius:8px;font-weight:800;cursor:pointer}
+  .bottom{display:flex;gap:12px;align-items:center;margin-top:12px;flex-wrap:wrap}
+  .vol{flex:1;min-width:180px;display:flex;gap:8px;align-items:center}
+  .vol input{flex:1;accent-color:#2bff7a}
+  #status{text-align:center;font-size:11px;margin-top:10px;opacity:.9;background:rgba(0,0,0,.3);padding:8px;border-radius:20px}
+  .hint{width:min(920px,100%);text-align:center;font-size:11px;opacity:.6;margin-top:8px}
+  @media(max-width:640px){.stage{grid-template-columns:48px 1fr 48px}.speaker{border-radius:30px}.driver{width:36px;height:36px}.driver.small{width:28px;height:28px}.head{min-height:360px}.controls{max-width:208px;flex-wrap:wrap;gap:8px;margin-left:auto;margin-right:auto}.screen{margin:0 12px;height:150px}.eye{width:52px}.eye.left{left:28px}.eye.right{right:28px}}
+</style>
 </head>
 <body>
-  <main>
-    <header>
-      <h1>RADIO WEB <small style="font-size:.55em;letter-spacing:.14em;color:#69caff">PLAYER / LIVE SCOPE</small></h1>
-    </header>
 
-    <section class="card" aria-labelledby="playerHeading">
-      <h2 id="playerHeading">Ouvir uma rádio</h2>
-      <label for="stationAddress">Endereço do stream ou do site</label>
-      <div class="address-row">
-        <input id="stationAddress" type="url" inputmode="url"
-          placeholder="https://..." autocomplete="url">
-        <select id="addressMode" aria-label="Tipo de endereço">
-          <option value="stream">Transmissão de áudio (stream)</option>
-          <option value="website">Site da rádio / YouTube</option>
-        </select>
-      </div>
-      <div class="player-controls">
-        <button id="playButton" type="button">Tocar e monitorar</button>
-        <button id="stopButton" class="secondary" type="button" disabled>Parar</button>
-        <button id="favoriteButton" class="secondary" type="button">Salvar favorito</button>
-      </div>
-      <p class="hint">Páginas de rádio podem bloquear incorporação; algumas, como a Melody FM, são convertidas automaticamente para o stream de áudio. Em uma página hospedada, permita o acesso ao microfone e selecione “Mixagem estéreo” para monitorar a saída do Windows; se essa entrada não estiver disponível, abra o player pela extensão Chrome/Edge. Links do YouTube usam o player oficial com vídeo visível; reprodução somente em áudio não é suportada.</p>
-      <p id="playerStatus" role="status" aria-live="polite" data-state="stopped">Pronto para tocar.</p>
-      <canvas id="scope" aria-label="Osciloscópio do áudio da rádio"></canvas>
-      <div class="scale-row">
-        <label for="verticalScale">Vertical</label>
-        <input id="verticalScale" type="range" min="0.5" max="6" step="0.1" value="1.5">
-      </div>
-      <audio id="audioPlayer" controls></audio>
-      <p class="hint">Monitoramento pelo áudio do Windows (requer HTTPS e permissão de microfone):</p>
-      <div class="audio-input-controls">
-        <button id="detectAudioInputsButton" class="secondary" type="button">Permitir e listar entradas</button>
-        <select id="audioInputDevice" aria-label="Entrada de áudio do Windows" disabled>
-          <option value="">Liste as entradas de áudio primeiro</option>
-        </select>
-        <button id="monitorAudioInputButton" type="button" disabled>Monitorar entrada</button>
-      </div>
-      <iframe id="siteFrame" title="Site da rádio ou vídeo do YouTube"
-        allow="autoplay; encrypted-media; picture-in-picture; fullscreen; web-share"
-        referrerpolicy="strict-origin-when-cross-origin"></iframe>
-    </section>
+<div class="top">
+  <div class="logo">NEON<span>HEAD</span><small>WEB PLAYER • FUTURISTA • 80s</small></div>
+  <div class="badge">● <span id="liveDot">LIVE</span> • <span id="clock">00:00:00</span></div>
+</div>
 
-    <section class="card" aria-labelledby="stationsHeading">
-      <div class="search-row">
-        <div>
-          <h2 id="stationsHeading">Lista inicial — rádios rock/pop internacionais</h2>
-          <p class="hint">Até 20 estações online; prioriza rock/pop dos anos 80.</p>
-        </div>
-        <button id="searchButton" class="secondary" type="button">Buscar rádios</button>
-      </div>
-      <p id="catalogStatus" role="status" aria-live="polite"></p>
-      <ol id="stationList" aria-label="Estações encontradas"></ol>
-    </section>
+<div class="stage">
+  <div class="speaker" id="spkL"><div class="led"></div><div class="driver"></div><div class="driver small"></div><div style="font-size:9px;letter-spacing:2px">LEFT</div></div>
 
-    <section class="card" aria-labelledby="favoritesHeading">
-      <h2 id="favoritesHeading">Minhas rádios favoritas</h2>
-      <p class="hint">Salve aqui os endereços de streams ou sites que você adicionou.</p>
-      <p id="favoriteStatus" role="status" aria-live="polite"></p>
-      <ol id="favoriteList" aria-label="Rádios favoritas"></ol>
-    </section>
-  </main>
-  <script src="extension/player.js"></script>
+  <div class="head-wrap">
+    <div class="head">
+      <div class="head-top"><span class="pill">◧ MENU</span><span class="pill">✕</span><span class="pill">NEON HEAD v3</span></div>
+      <div class="controls">
+        <button id="prevBtn" title="Anterior">⏮</button>
+        <button id="playBtn" title="Play/Pause" aria-label="Reproduzir rádio">▶</button>
+        <button id="stopBtn" title="Stop">⏹</button>
+        <button id="nextBtn" title="Próxima">⏭</button>
+        <button id="visBtn" class="gold" title="Trocar visual">〰️</button>
+      </div>
+      <div class="screen">
+        <canvas id="scope" width="520" height="188"></canvas>
+        <div class="lcd"><span id="nowPlaying">▶ 80s Exitos - LAUT.FM</span><span id="modeLabel">OSCILOSCÓPIO</span></div>
+      </div>
+      <div class="face">
+        <div class="eye left"></div><div class="eye right"></div>
+        <div class="nose"></div>
+        <div class="mouth"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="speaker" id="spkR"><div class="led"></div><div class="driver"></div><div class="driver small"></div><div style="font-size:9px;letter-spacing:2px">RIGHT</div></div>
+</div>
+
+<div class="panel">
+  <div class="panel-head">
+    <h2>PLAYLIST • <span id="count">3</span> RÁDIOS SALVAS NO NAVEGADOR</h2>
+    <div class="tabs">
+      <button id="tabAll" class="active">Todas</button>
+      <button id="tabAdd">+ Adicionar Rádio</button>
+      <button id="tabClear">Limpar minhas rádios</button>
+    </div>
+  </div>
+
+  <div id="list" style="margin-top:10px"></div>
+
+  <div class="add-form" id="addForm">
+    <input id="newName" placeholder="Nome: Ex: 80s Rock Brasil">
+    <input id="newUrl" placeholder="URL do stream: https://... ou http://... .mp3">
+    <button id="saveBtn">💾 Salvar no navegador</button>
+    <small style="width:100%;opacity:.7">Dica: use o link direto do áudio (.mp3 / stream). Links de página normal (site com player) não tocam. Fica salvo em localStorage, mesmo fechando o navegador.</small>
+  </div>
+
+  <div class="bottom">
+    <div class="vol"><span>VOL</span><input type="range" id="vol" min="0" max="100" value="80"><span id="volVal">80%</span></div>
+    <button id="visBtn2" style="background:#2bff7a;border:0;padding:8px 14px;border-radius:20px;font-weight:800;cursor:pointer">〰️ Trocar Visual</button>
+    <button id="exportBtn" style="background:#111;border:1px solid #2bff7a;color:#d6ffe0;padding:8px 14px;border-radius:20px;cursor:pointer">↗ Exportar lista</button>
+  </div>
+  <div id="status">Tentando iniciar a rádio. Se o navegador bloquear, clique em PLAY.</div>
+</div>
+
+<div class="hint">100% HTML + CSS + Canvas • Sem imagem fixa • A cabeça, alto-falantes e osciloscópio são desenhados pelo navegador em tempo real</div>
+
+<audio id="audio" autoplay preload="none" playsinline></audio>
+
+<script>
+const DEFAULTS = [
+  {name:"80s Exitos - LAUT.FM", genre:"80s", url:"https://stream.laut.fm/80sexitos", orig:"https://stream.laut.fm/80sexitos", fixed:true},
+  {name:"Heart 80s - Heart Radio", genre:"80s UK", url:"https://media-ssl.musicradio.com/Heart80sMP3", orig:"https://media-ssl.musicradio.com/Heart80sMP3", fixed:true},
+  {name:"Melody FM - Ao Vivo", genre:"BR", url:"https://sc4s.cdn.upx.com:8080/stream", orig:"https://sc4s.cdn.upx.com:8080/stream", fixed:true},
+];
+const KEY = "neonhead_stations_v3";
+function loadCustom(){
+  try{ return JSON.parse(localStorage.getItem(KEY) || "[]"); }catch(e){ return []; }
+}
+function saveCustom(list){ localStorage.setItem(KEY, JSON.stringify(list)); }
+let stations = [...DEFAULTS, ...loadCustom()];
+let current = 0, isPlaying=false, visMode=0;
+
+const audio=document.getElementById('audio'), canvas=document.getElementById('scope'), ctx=canvas.getContext('2d'), playBtn=document.getElementById('playBtn');
+const listEl=document.getElementById('list'), nowPlaying=document.getElementById('nowPlaying'), statusEl=document.getElementById('status');
+function setPlaybackState(playing){
+  isPlaying=playing;
+  playBtn.textContent=playing?'⏸':'▶';
+  playBtn.setAttribute('aria-label',playing?'Pausar rádio':'Reproduzir rádio');
+  document.getElementById('spkL').classList.toggle('playing',playing);
+  document.getElementById('spkR').classList.toggle('playing',playing);
+}
+function reportPlaybackError(error){
+  setPlaybackState(false);
+  if(error.name==='NotAllowedError') statusEl.textContent='Reprodução automática bloqueada pelo navegador. Clique em PLAY para ouvir.';
+  else statusEl.textContent='Não foi possível tocar esta rádio: '+(error.message||'verifique o link e sua conexão.');
+}
+
+function renderList(){
+  listEl.innerHTML="";
+  document.getElementById('count').textContent = stations.length;
+  stations.forEach((s,i)=>{
+    const d=document.createElement('div'); d.className='station'+(i===current?' active':'');
+    d.innerHTML=`<span class="num">0${i+1}</span><span>${s.name}</span><small>${s.genre} ${s.fixed?'• PADRÃO':'• MINHA'}</small>${!s.fixed?`<button class="del" data-i="${i}">✕</button>`:''}`;
+    d.onclick=(e)=>{ if(e.target.classList.contains('del')) return; playStation(i); };
+    listEl.appendChild(d);
+  });
+  listEl.querySelectorAll('.del').forEach(btn=>{
+    btn.onclick=(e)=>{ e.stopPropagation(); const idx=+btn.dataset.i; const removed=stations.splice(idx,1)[0];
+      saveCustom(stations.filter(s=>!s.fixed)); renderList();
+      statusEl.textContent='Removida: '+removed.name; if(current>=stations.length) current=0;
+    };
+  });
+}
+renderList();
+
+async function playStation(i){
+  current=i; renderList();
+  nowPlaying.textContent='▶ '+stations[i].name;
+  statusEl.textContent='Conectando: '+(stations[i].orig||stations[i].url);
+  audio.src=stations[i].url; audio.volume=document.getElementById('vol').value/100;
+  try{
+    await audio.play();
+    setPlaybackState(true);
+    statusEl.textContent='TOCANDO: '+stations[i].name;
+  }catch(e){ reportPlaybackError(e); }
+}
+playBtn.onclick=async()=>{
+  if(!audio.paused){ audio.pause(); setPlaybackState(false); statusEl.textContent='Pausado: '+stations[current].name; return; }
+  if(!audio.src) return playStation(current);
+  try{ await audio.play(); setPlaybackState(true); statusEl.textContent='TOCANDO: '+stations[current].name; }
+  catch(e){ reportPlaybackError(e); }
+};
+document.getElementById('stopBtn').onclick=()=>{ audio.pause(); audio.removeAttribute('src'); audio.load(); setPlaybackState(false); statusEl.textContent='Rádio parada.'; };
+document.getElementById('nextBtn').onclick=()=>playStation((current+1)%stations.length);
+document.getElementById('prevBtn').onclick=()=>playStation((current-1+stations.length)%stations.length);
+function toggleVis(){ visMode=(visMode+1)%3; document.getElementById('modeLabel').textContent=['OSCILOSCÓPIO','BARRAS','CIRCULAR'][visMode]; }
+document.getElementById('visBtn').onclick=toggleVis;
+document.getElementById('visBtn2').onclick=toggleVis;
+document.getElementById('vol').oninput=e=>{ audio.volume=e.target.value/100; document.getElementById('volVal').textContent=e.target.value+'%'; };
+
+// Abas
+document.getElementById('tabAdd').onclick=()=>{ document.getElementById('addForm').classList.toggle('show'); document.getElementById('newName').focus(); };
+document.getElementById('tabAll').onclick=()=>{ document.getElementById('addForm').classList.remove('show'); };
+document.getElementById('tabClear').onclick=()=>{ if(!confirm('Apagar só as suas rádios? As 3 padrão ficam.')) return; stations=stations.filter(s=>s.fixed); saveCustom([]); renderList(); statusEl.textContent='Suas rádios foram apagadas. As 3 padrão continuam.'; };
+document.getElementById('saveBtn').onclick=()=>{
+  const name=document.getElementById('newName').value.trim();
+  const url=document.getElementById('newUrl').value.trim();
+  if(!name||!url) return alert('Preencha nome e URL do stream');
+  if(!url.startsWith('http')) return alert('URL tem que começar com http:// ou https://');
+  const item={name, genre:'MINHA', url, orig:url, fixed:false};
+  stations.push(item); saveCustom(stations.filter(s=>!s.fixed)); renderList();
+  document.getElementById('newName').value=''; document.getElementById('newUrl').value='';
+  document.getElementById('addForm').classList.remove('show');
+  statusEl.textContent='Salva no navegador: '+name+' - clique nela pra tocar';
+  playStation(stations.length-1);
+};
+document.getElementById('exportBtn').onclick=()=>{
+  const txt=stations.map(s=>s.name+' - '+s.url).join('\n');
+  navigator.clipboard.writeText(txt).then(()=> statusEl.textContent='Lista copiada! Cole onde quiser.');
+};
+
+// OSCILOSCOPIO
+let t=0;
+function draw(){
+  requestAnimationFrame(draw); const W=canvas.width,H=canvas.height;
+  ctx.fillStyle='rgba(0,5,0,0.32)'; ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='rgba(43,255,122,0.14)'; ctx.lineWidth=1;
+  for(let x=0;x<W;x+=22){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(let y=0;y<H;y+=22){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  ctx.strokeStyle='rgba(43,255,122,0.45)'; ctx.beginPath(); ctx.moveTo(0,H/2); ctx.lineTo(W,H/2); ctx.stroke();
+  ctx.lineWidth=2.5; ctx.shadowBlur=14; ctx.shadowColor='#2bff7a'; ctx.strokeStyle='#2bff7a'; ctx.beginPath();
+  t+=isPlaying?0.2:0.015;
+  if(visMode===2){ const cx=W/2,cy=H/2; for(let a=0;a<Math.PI*2;a+=0.05){ const r=52+Math.sin(a*3+t)*12+(isPlaying?Math.sin(a*7+t*2)*10:0); const x=cx+Math.cos(a)*r*1.6,y=cy+Math.sin(a)*r*0.6; if(a===0)ctx.moveTo(x,y); else ctx.lineTo(x,y);} } else if(visMode===1){ const bars=56,bw=W/bars; for(let i=0;i<bars;i++){ const v=(Math.sin(i*0.45+t)+1)/2*(isPlaying?1:0.15),bh=v*(H-26); ctx.fillStyle=`hsl(${120-v*70},100%,${42+v*28}%)`; ctx.fillRect(i*bw+2,H-bh-8,bw-4,bh);} ctx.stroke(); return; } else { for(let x=0;x<=W;x+=3){ const y=H/2+Math.sin(x*0.04+t)*26*(isPlaying?1:0.1)+Math.sin(x*0.11-t*1.6)*12*(isPlaying?1:0.05); if(x===0)ctx.moveTo(x,y); else ctx.lineTo(x,y);} }
+  ctx.stroke(); ctx.shadowBlur=0; ctx.fillStyle='#7dff9a'; ctx.font='10px monospace';
+  ctx.fillText(isPlaying?'LIVE • VISUAL SYNTH':'PAUSED',10,16);
+  ctx.fillText('CH1 • 44.1kHz • '+stations[current].name,10,H-10);
+}
+draw();
+setInterval(()=>{ document.getElementById('clock').textContent=new Date().toLocaleTimeString('pt-BR'); },1000);
+playStation(current);
+</script>
 </body>
 </html>

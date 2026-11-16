@@ -1,9 +1,0 @@
-Agora nosso player navegador é estilo winamp e deixa o usuário digitar também o endereço da radio que ele quer ouvir;
-Nosso player também procura na internet até 20 radios on line com o estilo rock pop internacional preferencia anos 80;
-Nosso player memoriza e cria uma lista com essas 20 radios;
-O usuário pode clicar nessa lista, assim o campo é preenchido com o endereço selecionado do site e toca / monitora a radio;
-O usuário também pode adicionar seus sites de musica favoritos nessa lista;
-Essa lista fica na memória do navegador , assim não precisa atualizar toda vez que entrar novamente no navegador;
-Nosso player web agora tem estilo winamp com uma skin escura azul para usuários que gostam de tema escuro;
-Nosso player web também aceita links do youtube com musicas, mas não abre os videos, somente traz o audio do link;
-
