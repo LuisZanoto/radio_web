@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Melody FM - Monitor de áudio",
+  "version": "1.0.0",
+  "description": "Monitora o avanço do player da Melody FM e reconecta quando ele trava.",
+  "permissions": ["storage", "tabs"],
+  "host_permissions": ["https://www.melodyfm.com.br/aovivo/audio*"],
+  "action": {
+    "default_title": "Monitor da Melody FM",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.melodyfm.com.br/aovivo/audio*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

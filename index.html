@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#111827">
-  <title>Melody FM — Rádio ao vivo</title>
+  <title>Melody FM — Monitor de áudio</title>
   <style>
     :root {
       color-scheme: dark;
@@ -23,7 +23,7 @@
     }
 
     main {
-      width: min(100%, 440px);
+      width: min(100%, 520px);
       padding: 32px;
       border: 1px solid #374151;
       border-radius: 20px;
@@ -36,134 +36,66 @@
       font-size: 1.8rem;
     }
 
-    .subtitle,
-    .note {
+    p,
+    li {
       color: #cbd5e1;
       line-height: 1.55;
     }
 
-    .status {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin: 24px 0;
-      font-weight: 600;
+    ol {
+      padding-left: 22px;
     }
 
-    .indicator {
-      width: 10px;
-      height: 10px;
-      flex: 0 0 auto;
-      border-radius: 50%;
-      background: #94a3b8;
+    li + li {
+      margin-top: 8px;
     }
 
-    .indicator.open {
-      background: #34d399;
-      box-shadow: 0 0 12px #34d39988;
+    a {
+      color: #fdba74;
     }
 
-    .actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-    }
-
-    button {
-      min-height: 46px;
-      padding: 10px 18px;
-      border: 0;
+    .button {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 11px 18px;
       border-radius: 10px;
       background: #f97316;
       color: #111827;
-      font: inherit;
       font-weight: 700;
-      cursor: pointer;
-    }
-
-    button:hover:not(:disabled) {
-      background: #fb923c;
-    }
-
-    button.secondary {
-      background: #374151;
-      color: #f9fafb;
-    }
-
-    button.secondary:hover:not(:disabled) {
-      background: #4b5563;
-    }
-
-    button:disabled {
-      cursor: not-allowed;
-      opacity: 0.5;
+      text-decoration: none;
     }
 
     .note {
-      margin: 24px 0 0;
+      margin-top: 22px;
+      color: #94a3b8;
       font-size: 0.9rem;
     }
   </style>
 </head>
 <body>
   <main>
-    <h1>Melody FM</h1>
-    <p class="subtitle">Abra a transmissão ao vivo em uma janela separada.</p>
+    <h1>Melody FM — Monitor de áudio</h1>
+    <p>
+      O monitor é uma extensão do Chrome ou Edge. O arquivo HTML sozinho não
+      consegue observar o player de outro site.
+    </p>
 
-    <div class="status" role="status" aria-live="polite">
-      <span class="indicator" id="indicator" aria-hidden="true"></span>
-      <span id="statusText">Rádio parada</span>
-    </div>
+    <ol>
+      <li>Abra <code>chrome://extensions</code> (Chrome) ou <code>edge://extensions</code> (Edge).</li>
+      <li>Ative o modo do desenvolvedor e escolha <strong>Carregar sem compactação</strong>.</li>
+      <li>Selecione a pasta <code>extension</code> deste projeto.</li>
+      <li>Abra a rádio e use o ícone da extensão para iniciar ou parar o áudio.</li>
+    </ol>
 
-    <div class="actions">
-      <button id="startButton" type="button">Iniciar áudio</button>
-      <button class="secondary" id="stopButton" type="button" disabled>Parar áudio</button>
-    </div>
+    <a class="button" href="https://www.melodyfm.com.br/aovivo/audio" target="_blank" rel="noopener">
+      Abrir a rádio
+    </a>
 
     <p class="note">
-      A página acompanha se a janela da rádio está aberta. Por segurança, o navegador
-      não permite que este HTML detecte se o áudio remoto travou ou reconecte o player
-      automaticamente.
+      A extensão tenta retomar o player e recarrega a página quando o tempo do áudio
+      não avança por 5 segundos. Ela detecta o avanço do player, não silêncio
+      intencional ou volume inaudível da transmissão.
     </p>
   </main>
-
-  <script>
-    const RADIO_URL = "https://www.melodyfm.com.br/aovivo/audio";
-    const RADIO_WINDOW_NAME = "melodyFmRadioWindow";
-    const indicator = document.querySelector("#indicator");
-    const statusText = document.querySelector("#statusText");
-    const startButton = document.querySelector("#startButton");
-    const stopButton = document.querySelector("#stopButton");
-    let radioWindow = null;
-
-    function updateStatus() {
-      const isOpen = radioWindow !== null && !radioWindow.closed;
-      indicator.classList.toggle("open", isOpen);
-      statusText.textContent = isOpen ? "Janela da rádio aberta" : "Rádio parada";
-      startButton.disabled = isOpen;
-      stopButton.disabled = !isOpen;
-
-      if (!isOpen) radioWindow = null;
-    }
-
-    startButton.addEventListener("click", () => {
-      radioWindow = window.open(RADIO_URL, RADIO_WINDOW_NAME);
-      if (!radioWindow) {
-        statusText.textContent = "Permita pop-ups para abrir a rádio";
-        return;
-      }
-
-      radioWindow.focus();
-      updateStatus();
-    });
-
-    stopButton.addEventListener("click", () => {
-      if (radioWindow && !radioWindow.closed) radioWindow.close();
-      updateStatus();
-    });
-
-    window.setInterval(updateStatus, 1000);
-    updateStatus();
-  </script>
 </body>
 </html>
