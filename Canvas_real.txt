@@ -1,0 +1,32 @@
+Vamos alterar o index e deixar com apenas um tipo de visualização : Osciloscopio.
+As outras visualizações e "Trocar Visual " não vai ter mais.
+
+E sobre o canvas: dá pra deixar bem mais realista sem forçar o browser, se fizer do jeito certo. 
+Se fizer do jeito errado, aí sim ele força e complica tudo.Por que hoje ele tá em VISUAL SYNTH?
+No seu print anterior tava escrito LIVE • VISUAL SYNTH. Isso quer dizer que o seu canvas não 
+estava plotando o áudio de verdade. Ele estava desenhando uma onda inventada, bonitinha, que mexe sozinha mesmo com o som mudo.Isso acontece porque pra plotar o áudio real, você precisa que o AnalyserNode receba o áudio de verdade. E pra isso o <audio> tem que estar conectado no AudioContext com CORS liberado. Se a rádio não liberar, o navegador bloqueia o dado real por segurança e você cai pro modo sintético.Se agora não tá travando mais, a primeira coisa é ver: ele ainda tá em SYNTH ou já foi pra REAL?O que é "plotar o áudio de verdade"?Tem 2 jeitos realistas, e um é bem mais leve que o outro:1. Forma de onda - o mais leve e mais realista pra sua cabeça
+É o desenho da onda sonora, igual no Audacity. Você pega o getByteTimeDomainData, que te devolve 
+1024 números de 0 a 255, que são a altura da onda naquele instante.É leve porque é só ligar os pontos. O navegador já calcula isso de graça dentro do AnalyserNode. Não pesa nada.2. Barras de frequência - o mais bonito, mas pesa um pouco mais
+É o equalizador, grave / médio / agudo. Você pega o getByteFrequencyData. Também é leve,
+ mas se você desenhar 256 barrinhas com sombra, blur e gradiente a 60fps, aí sim o celular
+ vai esquentar.O que realmente força o browser? Não é o AnalyserNode. 
+ Ele é quase de graça, ele já tá rodando dentro do Chrome em C++.
+ O que força é o desenho no canvas:Desenhar 1024 pontos a 60fps = pesadoDesenhar
+ 120 pontos a 30fps = leveUsar shadowBlur, filter: blur, gradiente a cada frame = pesadoLimpar 
+ o canvas inteiro e redesenhar tudo = pesado O seu canvas hoje já tá rodando a 60fps com a onda sintética.
+ Trocar a onda sintética pela onda real não aumenta quase nada o custo. 
+ O custo é o mesmo, só muda de onde vem o número. Como deixar realista sem complicar:
+ Pra seu design (cabeça osciloscopio) Neon, o ideal é esse meio-termo:fftSize = 2048 - bom equilíbrio,
+ não precisa de 8192 Pega os 1024 pontos, mas desenha só 1 a cada 8, ou seja, uns 128 pontos.
+ O olho humano não vê diferença, mas o celular agradece. Desenha a 30fps, não 60fps. 
+ Pra onda de rádio, 30fps já parece liso. Não usa shadowBlur dentro do loop. 
+ Se quiser brilho neon, desenha a linha 2 vezes, uma mais grossa e transparente por baixo. 
+ Dá o mesmo efeito e é 10x mais leve. Quando o áudio travar ou pausar, volta pro SYNTH. 
+ Assim o design (cabeça osciloscopio) nunca fica parada, ela continua "respirando" mesmo sem áudio.
+ Se você fizer assim, o consumo sobe tipo 2% a 3% de CPU. Nada que trave o Mint ou o celular.
+ Se você fizer do jeito pesado, com FFT grande + blur + 60fps + canvas em tela cheia, 
+ aí sim ele vai começar a engasgar e pode até ajudar o áudio a travar de novo, porque 
+ o thread do canvas rouba tempo do thread do áudio. Minha análise:Vale a pena sim. 
+ O design (cabeça osciloscopio) hoje tá bonita, mas ela é "falsa", ela dança mesmo com o som mudo. 
+ Se você plotar a onda real, na hora que a música tem grave forte a onda vai ficar grande, 
+ na hora do locutor falando baixinho ela vai ficar pequena. O ouvinte percebe na hora que é real.
