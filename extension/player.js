@@ -19,12 +19,35 @@
   const siteFrame = document.querySelector("#siteFrame");
   const canvas = document.querySelector("#scope");
   const verticalScale = document.querySelector("#verticalScale");
+  const extensionStorage = typeof chrome !== "undefined" ? chrome.storage?.local : null;
+
+  async function storageGet(defaults) {
+    if (extensionStorage) return extensionStorage.get(defaults);
+
+    const values = {};
+    for (const [key, defaultValue] of Object.entries(defaults)) {
+      const savedValue = localStorage.getItem(`radio-web:${key}`);
+      values[key] = savedValue === null ? defaultValue : JSON.parse(savedValue);
+    }
+    return values;
+  }
+
+  async function storageSet(values) {
+    if (extensionStorage) {
+      await extensionStorage.set(values);
+      return;
+    }
+    for (const [key, value] of Object.entries(values)) {
+      localStorage.setItem(`radio-web:${key}`, JSON.stringify(value));
+    }
+  }
 
   let stations = [];
   let favoriteStations = [];
   let audioContext = null;
   let tabStream = null;
   let tabSource = null;
+  let tabCaptureKind = "";
   let analyzer = null;
   let monitoring = false;
   let reconnecting = false;
@@ -80,6 +103,7 @@
   }
 
   function captureCurrentTab() {
+    if (typeof chrome === "undefined" || !chrome.tabCapture?.capture) return null;
     return new Promise((resolve, reject) => {
       chrome.tabCapture.capture({audio: true, video: false}, stream => {
         const error = chrome.runtime.lastError;
@@ -101,6 +125,7 @@
     tabSource = source;
     analyzer = nextAnalyzer;
     tabStream = stream;
+    tabCaptureKind = "tab";
     for (const track of stream.getAudioTracks()) {
       track.addEventListener("ended", () => {
         if (monitoring) setPlayerStatus("A captura do áudio foi encerrada pelo navegador.", "error");
@@ -108,8 +133,28 @@
     }
   }
 
+  function connectMediaElementCapture(context) {
+    if (typeof audioPlayer.captureStream !== "function") return false;
+    try {
+      const stream = audioPlayer.captureStream();
+      if (stream.getAudioTracks().length === 0) return false;
+      const source = context.createMediaStreamSource(stream);
+      const nextAnalyzer = context.createAnalyser();
+      nextAnalyzer.fftSize = 2048;
+      source.connect(nextAnalyzer);
+      tabSource = source;
+      analyzer = nextAnalyzer;
+      tabStream = stream;
+      tabCaptureKind = "media";
+      return true;
+    } catch (error) {
+      console.error("Radio Web: não foi possível capturar o áudio do stream.", error);
+      return false;
+    }
+  }
+
   async function saveCurrentStation(url, mode) {
-    await chrome.storage.local.set({currentStation: {url, mode}});
+    await storageSet({currentStation: {url, mode}});
   }
 
   async function playStation() {
@@ -135,10 +180,12 @@
         audioContext = new AudioContext();
       }
       const resumePromise = audioContext.resume();
-      const capturePromise = tabStream &&
-        tabStream.getAudioTracks().some(track => track.readyState === "live")
-        ? Promise.resolve(tabStream)
-        : captureCurrentTab();
+      const tabCaptureAvailable = typeof chrome !== "undefined" && chrome.tabCapture?.capture;
+      const hasLiveTabCapture = tabCaptureKind === "tab" && tabStream &&
+        tabStream.getAudioTracks().some(track => track.readyState === "live");
+      const capturePromise = tabCaptureAvailable
+        ? hasLiveTabCapture ? Promise.resolve(tabStream) : captureCurrentTab()
+        : null;
       let playbackErrorPromise = Promise.resolve(null);
       if (mode === "stream") {
         siteFrame.style.display = "none";
@@ -157,34 +204,59 @@
         siteFrame.style.display = "block";
         siteFrame.src = activeFrameUrl;
       }
-      monitoring = true;
+      monitoring = false;
       reconnecting = false;
-      lastSignalAt = performance.now();
       stopButton.disabled = false;
-      const [captureResult, resumeResult] = await Promise.allSettled([capturePromise, resumePromise]);
-      if (captureResult.status === "rejected") throw captureResult.reason;
+      let captureResult = null;
+      let resumeResult;
+      if (capturePromise) {
+        [captureResult, resumeResult] = await Promise.allSettled([capturePromise, resumePromise]);
+        if (captureResult.status === "rejected") throw captureResult.reason;
+      } else {
+        [resumeResult] = await Promise.allSettled([resumePromise]);
+      }
       if (resumeResult.status === "rejected") {
-        for (const track of captureResult.value.getTracks()) track.stop();
+        for (const track of captureResult?.value.getTracks() || []) track.stop();
         throw resumeResult.reason;
       }
-      const stream = captureResult.value;
-      if (stream !== tabStream) {
-        connectCapture(stream, audioContext);
+
+      if (captureResult) {
+        if (captureResult.value !== tabStream) connectCapture(captureResult.value, audioContext);
+        monitoring = true;
+        lastSignalAt = performance.now();
+      } else if (mode === "stream") {
+        const playbackError = await playbackErrorPromise;
+        if (playbackError) throw playbackError;
+        const hasLiveMediaCapture = tabCaptureKind === "media" && tabStream &&
+          tabStream.getAudioTracks().some(track => track.readyState === "live");
+        monitoring = hasLiveMediaCapture || connectMediaElementCapture(audioContext);
+        lastSignalAt = performance.now();
       }
       await saveCurrentStation(url, mode);
-      setPlayerStatus(
-        videoId
-          ? "YouTube oficial incorporado com vídeo visível; aguardando áudio."
-          : "Aguardando ondas de áudio...",
-        "buffering"
-      );
-      playbackErrorPromise.then(error => {
-        if (error && monitoring && activeUrl === url) {
-          stopPlayer().then(() => {
-            setPlayerStatus(`Falha ao iniciar o stream: ${error.message}`, "error");
+      if (monitoring) {
+        setPlayerStatus(
+          videoId
+            ? "YouTube oficial incorporado com vídeo visível; aguardando áudio."
+            : "Aguardando ondas de áudio...",
+          "buffering"
+        );
+        if (captureResult && mode === "stream") {
+          playbackErrorPromise.then(error => {
+            if (error && monitoring && activeUrl === url) {
+              stopPlayer().then(() => {
+                setPlayerStatus(`Falha ao iniciar o stream: ${error.message}`, "error");
+              });
+            }
           });
         }
-      });
+      } else {
+        setPlayerStatus(
+          mode === "stream"
+            ? "Rádio tocando; o navegador não permite monitorar as ondas nesta página. Abra pela extensão para ativar o osciloscópio."
+            : "Site aberto; a captura do áudio do site requer a extensão Chrome/Edge.",
+          "unmonitored"
+        );
+      }
     } catch (error) {
       monitoring = false;
       await stopPlayer();
@@ -206,6 +278,7 @@
     activeUrl = "";
     activeFrameUrl = "";
     activeMode = "stream";
+    tabCaptureKind = "";
 
     if (tabSource) {
       tabSource.disconnect();
@@ -304,7 +377,7 @@
       stations = Array.from(unique.values())
         .sort((left, right) => right.score - left.score)
         .slice(0, MAX_STATIONS);
-      await chrome.storage.local.set({savedStations: stations});
+      await storageSet({savedStations: stations});
       renderStations();
       catalogStatus.textContent = `Encontradas ${stations.length} estações online. Lista salva neste navegador.`;
     } catch (error) {
@@ -403,7 +476,7 @@
     };
     const updatedFavorites = [...favoriteStations, favorite];
     try {
-      await chrome.storage.local.set({favoriteStations: updatedFavorites});
+      await storageSet({favoriteStations: updatedFavorites});
     } catch (error) {
       favoriteStatus.textContent = `Não foi possível salvar o favorito: ${error.message}`;
       return;
@@ -416,7 +489,7 @@
   async function removeFavorite(id) {
     const updatedFavorites = favoriteStations.filter(station => station.id !== id);
     try {
-      await chrome.storage.local.set({favoriteStations: updatedFavorites});
+      await storageSet({favoriteStations: updatedFavorites});
     } catch (error) {
       favoriteStatus.textContent = `Não foi possível remover o favorito: ${error.message}`;
       return;
@@ -512,7 +585,7 @@
     scale = Number(verticalScale.value);
   });
 
-  chrome.storage.local.get({
+  storageGet({
     savedStations: [],
     favoriteStations: [],
     currentStation: null
