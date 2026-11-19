@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NEON HEAD - Web Player</title>
-<script src="https://www.youtube.com/iframe_api"></script>
 <style>
   *{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',system-ui,sans-serif}
   body{min-height:100vh;background:radial-gradient(ellipse at 50% 0%, #123a1e 0%, #050a06 55%, #000 100%);color:#d6ffe0;display:flex;flex-direction:column;align-items:center;padding:14px;overflow-x:hidden}
@@ -34,14 +33,11 @@
   .lcd{position:absolute;left:8px;right:8px;bottom:6px;background:rgba(0,20,0,.9);border:1px solid #2bff7a;border-radius:6px;padding:5px 7px;display:flex;justify-content:space-between;font-size:11px;color:#aaffff;z-index:4}
   #ytWrap{position:absolute;inset:0;display:none;background:#000;z-index:2}
   #ytWrap.show{display:block}
-  #ytPlayer{width:100%;height:100%}
-  #ytPlayer iframe{width:100%;height:100%;border:0}
-  /* BOTÃO CLIQUE PARA TOCAR - RESOLVE BLOQUEIO DE AUTOPLAY */
-  #ytClickToPlay{position:absolute;inset:0;display:none;place-items:center;background:rgba(0,0,0,.55);z-index:3;cursor:pointer}
+  #ytFrame{width:100%;height:100%;border:0;display:block}
+  #ytClickToPlay{position:absolute;inset:0;display:none;place-items:center;background:rgba(0,0,0,.65);z-index:3;cursor:pointer}
   #ytClickToPlay.show{display:grid}
   #ytClickToPlay button{background:#ff0000;color:#fff;border:0;padding:14px 18px;border-radius:50px;font-size:15px;font-weight:800;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.6)}
   #ytClickToPlay small{display:block;text-align:center;margin-top:8px;color:#fff;font-size:11px}
-  /* ROSTO - ORIGINAL */
   .face{position:relative;z-index:2;height:150px;margin-top:6px}
   .eye{position:absolute;top:28px;width:92px;height:14px;border-radius:50%;border-bottom:4px solid rgba(0,40,10,.8);transform:rotate(-3deg)}
   .eye.left{left:62px}.eye.right{right:62px;transform:rotate(3deg)}
@@ -70,7 +66,7 @@
   .bottom{display:flex;gap:12px;align-items:center;margin-top:12px;flex-wrap:wrap}
   .vol{flex:1;min-width:180px;display:flex;gap:8px;align-items:center}
   .vol input{flex:1;accent-color:#2bff7a}
-  #status{text-align:center;font-size:11px;margin-top:10px;opacity:.9;background:rgba(0,0,0,.3);padding:8px;border-radius:20px}
+  #status{text-align:center;font-size:11px;margin-top:10px;opacity:.9;background:rgba(0,0,0,.3);padding:8px;border-radius:20px;word-break:break-all}
   .hint{width:min(920px,100%);text-align:center;font-size:11px;opacity:.6;margin-top:8px}
   @media(max-width:640px){.stage{grid-template-columns:48px 1fr 48px}.speaker{border-radius:30px}.driver{width:36px;height:36px}.driver.small{width:28px;height:28px}.head{min-height:360px}.controls{max-width:208px;flex-wrap:wrap;gap:8px;margin-left:auto;margin-right:auto}.screen{margin:0 12px;height:150px}.eye{width:52px}.eye.left{left:28px}.eye.right{right:28px}}
 </style>
@@ -94,8 +90,8 @@
       </div>
       <div class="screen">
         <canvas id="scope" width="520" height="188"></canvas>
-        <div id="ytWrap"><div id="ytPlayer"></div></div>
-        <div id="ytClickToPlay"><div><button id="ytPlayBtn">▶ Clique para tocar YouTube</button><small>Navegador bloqueia autoplay com som. Clique aqui.</small></div></div>
+        <div id="ytWrap"><iframe id="ytFrame" src="" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div>
+        <div id="ytClickToPlay"><div><button id="ytPlayBtn">▶ Clique para tocar YouTube</button><small>Navegador bloqueia autoplay. Clique aqui.</small></div></div>
         <div class="lcd"><span id="nowPlaying">▶ 80s Rock & Pop Hits - Coletânea YouTube</span><span id="modeLabel">OSCILOSCÓPIO</span></div>
       </div>
       <div class="face">
@@ -119,17 +115,18 @@
   </div>
   <div id="list" style="margin-top:10px"></div>
   <div class="add-form" id="addForm">
-    <input id="newName" placeholder="Nome: Ex: 80s Rock Brasil / Jornal Ao Vivo">
-    <input id="newUrl" placeholder="URL: link do stream .mp3 OU link do YouTube (watch / youtu.be / shorts / live)">
+    <input id="newName" placeholder="Nome: Ex: Tears for Fears / Jornal Ao Vivo">
+    <input id="newUrl" placeholder="Cole o link do YouTube completo, pode ter &list= e &start_radio=1">
     <button id="saveBtn">💾 Salvar no navegador</button>
-    <small style="width:100%;opacity:.7">Rádio: use o link direto do áudio (.mp3 / stream). YouTube: cole o link normal do vídeo. Se o vídeo não permitir embed, vai aparecer o erro 101 / 150 e o botão Abrir no YouTube.</small>
+    <small style="width:100%;opacity:.7">Pode colar link com list= e start_radio=1, ex: Tears for Fears. O sistema extrai o vídeo e a playlist. Se o vídeo não permitir embed, vai aparecer "Vídeo indisponível" dentro da tela - aí é bloqueio do dono, não do site.</small>
   </div>
   <div class="bottom">
     <div class="vol"><span>VOL</span><input type="range" id="vol" min="0" max="100" value="80"><span id="volVal">80%</span></div>
     <button id="exportBtn" style="background:#111;border:1px solid #2bff7a;color:#d6ffe0;padding:8px 14px;border-radius:20px;cursor:pointer">↗ Exportar lista</button>
     <button id="openYTBtn" style="display:none;background:#ff0000;color:#fff;border:0;padding:8px 14px;border-radius:20px;cursor:pointer">↗ Abrir no YouTube</button>
+    <button id="testEmbedBtn" style="background:#111;border:1px solid #fff;color:#fff;padding:8px 14px;border-radius:20px;cursor:pointer">🔍 Testar embed</button>
   </div>
-  <div id="status">Tentando iniciar. Se o navegador bloquear, clique em PLAY.</div>
+  <div id="status">Pronto. Clique em "Clique para tocar YouTube" na tela.</div>
 </div>
 
 <div class="hint">100% HTML + CSS + Canvas • Sem imagem fixa • A cabeça, alto-falantes e osciloscópio são desenhados pelo navegador em tempo real</div>
@@ -137,7 +134,7 @@
 
 <script>
 const DEFAULTS = [
-  {name:"80s Rock & Pop Hits - Coletânea Anos 80", genre:"80s Rock/Pop", url:"https://www.youtube.com/watch?v=q_QyaPhykuI", orig:"https://www.youtube.com/watch?v=q_QyaPhykuI", youtubeId:"q_QyaPhykuI", type:"youtube", fixed:true},
+  {name:"80s Rock & Pop Hits - Coletânea Anos 80", genre:"80s Rock/Pop", url:"https://www.youtube.com/watch?v=q_QyaPhykuI", orig:"https://www.youtube.com/watch?v=q_QyaPhykuI", youtubeId:"q_QyaPhykuI", youtubeList:null, type:"youtube", fixed:true},
   {name:"Heart 80s - Heart Radio", genre:"80s UK", url:"https://media-ssl.musicradio.com/Heart80sMP3", orig:"https://media-ssl.musicradio.com/Heart80sMP3", type:"radio", fixed:true},
   {name:"Melody FM - Ao Vivo", genre:"BR", url:"https://sc4s.cdn.upx.com:8080/stream", orig:"https://sc4s.cdn.upx.com:8080/stream", type:"radio", fixed:true},
 ];
@@ -147,7 +144,9 @@ function loadCustom(){
     const raw = JSON.parse(localStorage.getItem(KEY) || "[]");
     return raw.map(s => {
       if(!s.type) s.type = isYouTubeUrl(s.url) ? "youtube" : "radio";
-      if(s.type==="youtube" && !s.youtubeId) s.youtubeId = extrairVideoId(s.url);
+      if(s.type==="youtube" && !s.youtubeId){
+        const p = parseYouTubeUrl(s.url); s.youtubeId=p.id; s.youtubeList=p.list;
+      }
       return s;
     });
   }catch(e){ return []; }
@@ -160,118 +159,115 @@ try{
 }catch(e){}
 function saveCustom(list){ localStorage.setItem(KEY, JSON.stringify(list)); }
 let stations = [...DEFAULTS, ...loadCustom()];
-let current = 0, isPlaying=false;
+let current = 0, isPlaying=false, currentYTEmbedUrl="";
 let audio=document.getElementById('audio');
 const canvas=document.getElementById('scope'), ctx=canvas.getContext('2d'), playBtn=document.getElementById('playBtn');
 const listEl=document.getElementById('list'), nowPlaying=document.getElementById('nowPlaying'), statusEl=document.getElementById('status');
-const ytWrap=document.getElementById('ytWrap'), modeLabel=document.getElementById('modeLabel');
+const ytWrap=document.getElementById('ytWrap'), ytFrame=document.getElementById('ytFrame'), modeLabel=document.getElementById('modeLabel');
 const ytClickToPlay=document.getElementById('ytClickToPlay'), openYTBtn=document.getElementById('openYTBtn');
 const AUDIO_WATCHDOG_INTERVAL_MS=500, AUDIO_STALL_TIMEOUT_MS=2000, AUDIO_STARTUP_TIMEOUT_MS=10000, AUDIO_RECOVERY_COOLDOWN_MS=10000;
 let playbackGeneration=0, watchdogStartedAt=0, lastAudioProgressAt=0, lastObservedAudioTime=0, hasAudioProgress=false, lastWatchdogRecoveryAt=0, recoveryInProgress=false;
 let audioCtx=null, analyser=null, analyserData=null, streamSource=null, t=0;
-let ytPlayer=null, ytReady=false, ytPendingId=null, ytApiReady=false;
 
-// CORREÇÃO 1: NÃO BLOQUEIA MAIS file://, SÓ AVISA
-if(location.protocol==='file:'){
-  console.warn('NEON HEAD: aberto como file:// - YouTube pode ser bloqueado. Use http://localhost:8000');
-}
-
+// ============ YOUTUBE SEM API - SÓ IFRAME EMBED ============
 function isYouTubeUrl(url){ if(!url) return false; return url.includes('youtube.com') || url.includes('youtu.be'); }
-function extrairVideoId(url){ if(!url) return null; const m = url.match(/(?:v=|youtu\.be\/|shorts\/|live\/|embed\/)([a-zA-Z0-9_-]{11})/); return m ? m[1] : null; }
 
-// CORREÇÃO 2: SEM defer NO SCRIPT, API CHAMA ISSO QUANDO PRONTA
-// Definido ANTES de qualquer playStation, com origin correto
-function onYouTubeIframeAPIReady(){
-  ytApiReady = true;
-  ytReady = false;
-  const origin = location.origin && location.origin!=='null' ? location.origin : undefined;
-  ytPlayer = new YT.Player('ytPlayer', {
-    height:'100%', width:'100%',
-    videoId: DEFAULTS[0].youtubeId,
-    playerVars:{ autoplay:0, controls:1, modestbranding:1, rel:0, playsinline:1, enablejsapi:1, origin: origin },
-    events:{ 'onReady': onYTReady, 'onStateChange': onYTStateChange, 'onError': onYTError }
-  });
+// CORREÇÃO PRINCIPAL: parse completo, entende &list= &start_radio= &t= etc
+function parseYouTubeUrl(url){
+  try{
+    const u = new URL(url);
+    let id = null, list = null;
+    if(u.hostname.includes('youtu.be')){
+      id = u.pathname.replace('/','').split('?')[0];
+    } else {
+      id = u.searchParams.get('v');
+      list = u.searchParams.get('list');
+      // shorts / live / embed
+      if(!id){
+        const m = u.pathname.match(/\/(shorts|live|embed)\/([a-zA-Z0-9_-]{11})/);
+        if(m) id = m[2];
+      }
+    }
+    // fallback regex se ainda não achou
+    if(!id){
+      const m = url.match(/(?:v=|youtu\.be\/|shorts\/|live\/|embed\/)([a-zA-Z0-9_-]{11})/);
+      if(m) id = m[1];
+    }
+    return { id, list };
+  }catch(e){
+    const m = url.match(/(?:v=|youtu\.be\/|shorts\/|live\/|embed\/)([a-zA-Z0-9_-]{11})/);
+    return { id: m ? m[1] : null, list: null };
+  }
 }
-window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
 
-function onYTReady(event){
-  ytPlayer = event.target;
-  ytReady = true;
-  try{ ytPlayer.setVolume(parseInt(document.getElementById('vol').value,10)); }catch(e){}
-  // NÃO dá play automático aqui - navegador bloqueia. Mostra botão de clique.
-  if(stations[current] && stations[current].type==='youtube'){
-    ytClickToPlay.classList.add('show');
-    statusEl.textContent='YouTube pronto. Clique em "Clique para tocar YouTube" na tela.';
+function buildEmbedUrl(station, autoplay){
+  const id = station.youtubeId;
+  if(!id) return "";
+  let url = "https://www.youtube.com/embed/" + id;
+  const params = new URLSearchParams();
+  params.set('autoplay', autoplay ? '1' : '0');
+  params.set('controls', '1');
+  params.set('modestbranding', '1');
+  params.set('rel', '0');
+  params.set('playsinline', '1');
+  params.set('enablejsapi', '1');
+  // Se veio de link com list= (ex: Tears for Fears com RD...), mantém a playlist / mix
+  if(station.youtubeList){
+    params.set('list', station.youtubeList);
   }
-  if(ytPendingId){
-    const id = ytPendingId; ytPendingId=null;
-    try{ ytPlayer.cueVideoById(id); }catch(e){}
+  // Origin só se for http/https, não file://
+  if(location.origin && location.origin !== 'null'){
+    params.set('origin', location.origin);
   }
+  url += "?" + params.toString();
+  return url;
 }
-function onYTStateChange(e){
-  if(e.data === YT.PlayerState.PLAYING){
-    setPlaybackState(true);
-    ytClickToPlay.classList.remove('show');
-    openYTBtn.style.display='none';
-    statusEl.textContent='TOCANDO (YouTube): '+stations[current].name;
-  }
-  if(e.data === YT.PlayerState.PAUSED){
-    setPlaybackState(false);
-    ytClickToPlay.classList.add('show');
-    statusEl.textContent='Pausado (YouTube): '+stations[current].name;
-  }
-  if(e.data === YT.PlayerState.ENDED){
-    setPlaybackState(false);
-    statusEl.textContent='Vídeo terminou: '+stations[current].name;
-  }
-  if(e.data === YT.PlayerState.BUFFERING){
-    statusEl.textContent='Carregando vídeo YouTube...';
-  }
-}
-// CORREÇÃO 3: MOSTRA O CÓDIGO REAL DO ERRO
-function onYTError(e){
-  setPlaybackState(false);
-  const code = e.data;
-  let msg = 'Erro YouTube '+code;
-  if(code===2) msg = 'Erro YouTube 2 - ID inválido';
-  if(code===5) msg = 'Erro YouTube 5 - Erro HTML5';
-  if(code===100) msg = 'Erro YouTube 100 - Vídeo não encontrado / privado / removido';
-  if(code===101 || code===150) msg = 'Erro YouTube '+code+' - Dono do vídeo DESATIVOU embed. Não toca dentro de outro site. Abra no YouTube.';
-  statusEl.textContent = msg + ' - Clique em Abrir no YouTube abaixo.';
-  openYTBtn.style.display='inline-block';
-  ytClickToPlay.classList.remove('show');
-  const cur = stations[current];
-  if(cur) openYTBtn.onclick = ()=> window.open(cur.url, '_blank');
-}
+
 function pararYouTube(){
   ytClickToPlay.classList.remove('show');
   openYTBtn.style.display='none';
-  if(ytPlayer && ytReady){ try{ ytPlayer.stopVideo(); }catch(e){} }
-  ytPendingId=null;
+  // Pausa de verdade: tira o src do iframe
+  ytFrame.src = "";
+  currentYTEmbedUrl = "";
 }
-function tocarYouTube(youtubeId){
+
+function prepararYouTube(station){
+  // Mostra a tela do YouTube, mas NÃO dá play ainda - espera clique
   ytWrap.classList.add('show');
   canvas.style.display='none';
   modeLabel.textContent='YOUTUBE • MINIATURA';
   openYTBtn.style.display='none';
-  if(ytPlayer && ytReady){
-    try{ ytPlayer.setVolume(parseInt(document.getElementById('vol').value,10)); }catch(e){}
-    try{ ytPlayer.cueVideoById(youtubeId); }catch(e){}
-    // Mostra botão de clique - NÃO tenta autoplay forçado
-    ytClickToPlay.classList.add('show');
-    statusEl.textContent='YouTube carregado. Clique para tocar.';
-  } else {
-    ytPendingId = youtubeId;
-    statusEl.textContent='Carregando player do YouTube... aguarde 2s e clique em PLAY.';
-  }
+  // Monta URL SEM autoplay primeiro, só pra mostrar thumbnail / player pronto
+  currentYTEmbedUrl = buildEmbedUrl(station, false);
+  ytFrame.src = currentYTEmbedUrl;
+  ytClickToPlay.classList.add('show');
+  statusEl.textContent='YouTube pronto: '+station.name+' | Embed: '+currentYTEmbedUrl+' | Clique para tocar.';
+  // Botão Abrir no YouTube sempre disponível pra teste
+  openYTBtn.style.display='inline-block';
+  openYTBtn.onclick = ()=> window.open(station.url, '_blank');
 }
+
+function tocarYouTubeAgora(){
+  const station = stations[current];
+  if(!station || station.type!=='youtube') return;
+  // Agora SIM com autoplay=1, porque veio de um clique do usuário
+  const url = buildEmbedUrl(station, true);
+  currentYTEmbedUrl = url;
+  ytFrame.src = url;
+  ytClickToPlay.classList.remove('show');
+  setPlaybackState(true);
+  statusEl.textContent='TOCANDO (YouTube): '+station.name;
+}
+
 function mostrarOsciloscopio(){
   ytWrap.classList.remove('show');
   ytClickToPlay.classList.remove('show');
   openYTBtn.style.display='none';
+  ytFrame.src = "";
   canvas.style.display='block';
   modeLabel.textContent='OSCILOSCÓPIO';
 }
+
 function ensureAudioGraph(){
   if(audioCtx) return; const AudioCtor=window.AudioContext||window.webkitAudioContext; if(!AudioCtor) return;
   audioCtx=new AudioCtor(); analyser=audioCtx.createAnalyser(); analyser.fftSize=2048; analyser.smoothingTimeConstant=0.82; analyserData=new Uint8Array(analyser.fftSize);
@@ -294,15 +290,16 @@ renderList();
 async function playStation(i, {cacheBust=false, watchdogRecovery=false}={}){
   const generation=++playbackGeneration; if(!watchdogRecovery) recoveryInProgress=false; current=i; renderList();
   const station=stations[i]; nowPlaying.textContent='▶ '+station.name;
-  // CORREÇÃO: NÃO retorna mais se for file:// - tenta mesmo assim
   if(station.type==='youtube'){
     recoveryInProgress=false; audio.pause(); audio.removeAttribute('src'); try{ audio.load(); }catch(e){}
-    const yid = station.youtubeId || extrairVideoId(station.url);
-    if(!yid){ statusEl.textContent='Link do YouTube inválido: não achei o ID do vídeo.'; setPlaybackState(false); return; }
-    station.youtubeId = yid; statusEl.textContent='Conectando (YouTube): '+(station.orig||station.url);
-    tocarYouTube(yid);
-    // NÃO marca como tocando antes de receber PLAYING do YouTube
+    const parsed = parseYouTubeUrl(station.url);
+    const yid = station.youtubeId || parsed.id;
+    if(!yid){ statusEl.textContent='Link do YouTube inválido: não achei o ID. URL recebida: '+station.url; setPlaybackState(false); return; }
+    station.youtubeId = yid;
+    if(!station.youtubeList && parsed.list) station.youtubeList = parsed.list;
+    // NÃO marca como tocando ainda - espera clique
     setPlaybackState(false);
+    prepararYouTube(station);
     return;
   }
   pararYouTube(); mostrarOsciloscopio();
@@ -314,20 +311,26 @@ async function playStation(i, {cacheBust=false, watchdogRecovery=false}={}){
     if(generation!==playbackGeneration) return; recoveryInProgress=false; setPlaybackState(true); trackPlaybackStart(); statusEl.textContent='TOCANDO: '+station.name;
   }catch(e){ if(generation!==playbackGeneration) return; recoveryInProgress=false; reportPlaybackError(e); }
 }
-// Botão de clique dentro da tela - É ESSE CLIQUE QUE LIBERA O AUTOPLAY
-document.getElementById('ytPlayBtn').onclick=(e)=>{
-  e.stopPropagation();
-  if(ytPlayer && ytReady){
-    ytClickToPlay.classList.remove('show');
-    try{ ytPlayer.playVideo(); }catch(err){ statusEl.textContent='Clique no play dentro do vídeo.'; }
-  }
+document.getElementById('ytPlayBtn').onclick=(e)=>{ e.stopPropagation(); tocarYouTubeAgora(); };
+document.getElementById('testEmbedBtn').onclick=()=>{
+  const s = stations[current];
+  if(s.type!=='youtube'){ alert('Selecione uma estação YouTube primeiro.'); return; }
+  const url = buildEmbedUrl(s, false);
+  window.open(url, '_blank');
+  statusEl.textContent='Teste de embed aberto em nova aba: '+url+' | Se aparecer "Vídeo indisponível", o dono bloqueou embed.';
 };
 playBtn.onclick=async()=>{
   const station = stations[current];
   if(station && station.type==='youtube'){
-    if(!ytPlayer || !ytReady){ return playStation(current); }
-    if(isPlaying){ playbackGeneration++; try{ ytPlayer.pauseVideo(); }catch(e){} setPlaybackState(false); ytClickToPlay.classList.add('show'); statusEl.textContent='Pausado (YouTube): '+station.name; return; }
-    try{ ytClickToPlay.classList.remove('show'); ytPlayer.playVideo(); setPlaybackState(true); statusEl.textContent='TOCANDO (YouTube): '+station.name; }catch(e){ statusEl.textContent='Clique em PLAY no vídeo para iniciar.'; }
+    if(isPlaying){
+      // Pausa: recarrega sem autoplay (mostra botão de novo)
+      playbackGeneration++;
+      prepararYouTube(station);
+      setPlaybackState(false);
+      statusEl.textContent='Pausado (YouTube): '+station.name;
+      return;
+    }
+    tocarYouTubeAgora();
     return;
   }
   if(isPlaying&&(!audio.paused||recoveryInProgress)){ playbackGeneration++; recoveryInProgress=false; audio.pause(); setPlaybackState(false); statusEl.textContent='Pausado: '+stations[current].name; return; }
@@ -351,7 +354,7 @@ function checkAudioPlayback(){
   playStation(current,{cacheBust:true,watchdogRecovery:true});
 }
 setInterval(checkAudioPlayback,AUDIO_WATCHDOG_INTERVAL_MS);
-document.getElementById('vol').oninput=e=>{ const v = e.target.value; audio.volume=v/100; document.getElementById('volVal').textContent=v+'%'; if(ytPlayer && ytReady){ try{ ytPlayer.setVolume(parseInt(v,10)); }catch(err){} } };
+document.getElementById('vol').oninput=e=>{ const v = e.target.value; audio.volume=v/100; document.getElementById('volVal').textContent=v+'%'; /* Volume do YouTube é pelo controle do próprio player, não dá pra controlar por iframe simples */ };
 document.getElementById('tabAdd').onclick=()=>{ document.getElementById('addForm').classList.toggle('show'); document.getElementById('newName').focus(); };
 document.getElementById('tabAll').onclick=()=>{ document.getElementById('addForm').classList.remove('show'); };
 document.getElementById('tabClear').onclick=()=>{ if(!confirm('Apagar só as suas estações? As 3 padrão ficam.')) return; stations=stations.filter(s=>s.fixed); saveCustom([]); renderList(); statusEl.textContent='Suas estações foram apagadas. Padrões mantidos.'; if(current>=stations.length) current=0; };
@@ -359,10 +362,19 @@ document.getElementById('exportBtn').onclick=()=>{ const blob=new Blob([JSON.str
 document.getElementById('saveBtn').onclick=()=>{
   const name=document.getElementById('newName').value.trim(); const url=document.getElementById('newUrl').value.trim();
   if(!name||!url){ alert('Preencha nome e URL.'); return; }
-  const isYT = isYouTubeUrl(url); const yid = isYT ? extrairVideoId(url) : null;
-  if(isYT && !yid){ alert('Link do YouTube inválido. Cole o link normal do vídeo, ex: https://www.youtube.com/watch?v=XXXX ou https://youtu.be/XXXX'); return; }
-  if(!isYT){ try{ new URL(url); }catch(e){ alert('URL da rádio inválida.'); return; } }
-  const entry = isYT ? {name, genre:"YouTube", url, orig:url, youtubeId:yid, type:"youtube", fixed:false} : {name, genre:"Minha", url, orig:url, type:"radio", fixed:false};
+  const isYT = isYouTubeUrl(url);
+  if(isYT){
+    const p = parseYouTubeUrl(url);
+    if(!p.id){ alert('Link do YouTube inválido. Não achei o ID. Exemplo: https://www.youtube.com/watch?v=Ye7FKc1JQe4'); return; }
+    const entry = {name, genre:"YouTube", url, orig:url, youtubeId:p.id, youtubeList:p.list, type:"youtube", fixed:false};
+    stations.push(entry);
+    saveCustom(stations.filter(s=>!s.fixed)); renderList();
+    document.getElementById('newName').value=''; document.getElementById('newUrl').value=''; document.getElementById('addForm').classList.remove('show');
+    statusEl.textContent='Salva YouTube: '+name+' | ID='+p.id+' | List='+(p.list||'nenhuma')+' - clique nela para tocar.';
+    return;
+  }
+  try{ new URL(url); }catch(e){ alert('URL da rádio inválida.'); return; }
+  const entry = {name, genre:"Minha", url, orig:url, type:"radio", fixed:false};
   stations.push(entry); saveCustom(stations.filter(s=>!s.fixed)); renderList();
   document.getElementById('newName').value=''; document.getElementById('newUrl').value=''; document.getElementById('addForm').classList.remove('show');
   statusEl.textContent='Salva: '+name+' - clique nela para tocar.';
@@ -377,16 +389,8 @@ function draw(){
 }
 draw();
 setInterval(()=>{ document.getElementById('clock').textContent=new Date().toLocaleTimeString('pt-BR'); },1000);
-// NÃO tenta tocar YouTube sozinho no load - só prepara a tela e espera clique
-// Isso evita o bloqueio de autoplay do navegador
-(function init(){
-  renderList();
-  const s = stations[0];
-  nowPlaying.textContent='▶ '+s.name;
-  // Mostra a tela do YouTube já, mas sem dar play
-  tocarYouTube(s.youtubeId);
-  // Se for rádio no futuro, playStation faria o autoplay
-})();
+// Início: prepara YouTube sem autoplay, espera clique
+playStation(0);
 </script>
 </body>
 </html>
