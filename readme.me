@@ -1,0 +1,101 @@
+O workspace contém apenas `index.html` (28 KB), `index_bck.html` (backup), `CNAME` e o repositório `.git`. Não existe `README.md` ainda.
+
+Como estou em **Plan mode**, abaixo está minha análise completa do `index.html` e o plano estruturado para o `README.md`. Não farei edições até que você me autorize (toggle para Act mode).
+
+---
+
+# Análise do `index.html` — NEON HEAD Web Player
+
+## Visão Geral
+É um **player de rádio web em arquivo único** (HTML + CSS + JavaScript puro), sem dependências externas, sem API do YouTube e sem imagens fixas. Toda a identidade visual (cabeça, alto-falantes, osciloscópio) é desenhada pelo navegador via CSS e Canvas. Interface em português do Brasil (`pt-BR`).
+
+## Estrutura HTML
+
+| Seção | Classe/ID | Função |
+|-------|-----------|--------|
+| Header | `.top` | Logo "NEON HEAD", indicador `● LIVE` e relógio digital |
+| Palco | `.stage` | Grid 3 colunas: Speaker Esquerdo, Cabeça central, Speaker Direito |
+| Cabeça | `.head-wrap` > `.head` | Container central com controles, tela e "rosto" (olhos, nariz, boca) |
+| Controles | `.controls` | Botões ⏮ ▶ ⏹ ⏭ (Play é maior) |
+| Tela | `.screen` | Canvas do osciloscópio + iframe YouTube + overlay "clique para tocar" |
+| LCD | `.lcd` | Faixa inferior da tela com "agora tocando" e modo |
+| Painel | `.panel` | Playlist, abas, formulário de adicionar, volume, exportar |
+| Áudio | `<audio id="audio">` | Elemento nativo para streams de rádio (MP3) |
+
+## Design (CSS)
+- Fundo: gradiente radial escuro (`#123a1e` → `#050a06` → `#000`)
+- Paleta: verde neon `#2bff7a`, vermelho `#ff2a1a` (borda da tela), fundo escuro
+- Alto-falantes laterais: gradiente verde, animação `pulse` (0.4s) quando tocando, driver circular com brilho
+- Cabeça central: forma orgânica via `border-radius` asymmetral, drop-shadow, reflexos internos
+- Rosto: olhos (elipses rotacionadas), nariz (gradiente), boca (arredondada)
+- Responsivo: media query para telas < 640px (colunas mais finas, head menor, canvas menor)
+
+## JavaScript — Funcionalidades Detalhadas
+
+### 1. Dados e Persistência
+- `DEFAULTS`: 3 estações fixas (1 YouTube + 2 streams de rádio MP3)
+- `KEY = "neonhead_stations_v4"`: `localStorage` para estações personalizadas
+- Migração automática de `neonhead_stations_v3` para `v4`
+- `stations = [...DEFAULTS, ...loadCustom()]`: padrão + personalizadas
+
+### 2. YouTube (sem API oficial — só iframe embed)
+- `isYouTubeUrl(url)`: detecta `youtube.com` ou `youtu.be`
+- `parseYouTubeUrl(url)`: extrai `id` (vídeo) e `list` (playlist) suportando `v=`, `youtu.be/`, `shorts/`, `live/`, `embed/` e parâmetros `&list=`, `&start_radio=`, `&t=`
+- `buildEmbedUrl(station, autoplay)`: monta URL de embed com `autoplay`, `controls`, `modestbranding`, `rel`, `playsinline`, `enablejsapi`, `list` e `origin`
+- `prepararYouTube(station)`: mostra o player YouTube **sem autoplay** (espera clique do usuário devido a bloqueio de navegador)
+- `tocarYouTubeAgora()`: ativa `autoplay=1` após interação do usuário
+- `pararYouTube()`: limpa `src` do iframe para pausar de verdade
+- `mostrarOsciloscopio()`: esconde YouTube, mostra canvas
+
+### 3. Áudio de Rádio (Web Audio API)
+- `ensureAudioGraph()`: cria `AudioContext` → `AnalyserNode` (fftSize 2048, smoothing 0.82) → `MediaElementSource` → destino
+- `playStation(i)`: carrega stream no `<audio>`, toca, inicia watchdog
+- `setPlaybackState(playing)`: alterna ícone ▶/⏸ e classe `.playing` nos speakers
+- Volume: controle range 0-100 aplicado ao `<audio>` (YouTube é controlado pelo próprio iframe)
+
+### 4. Watchdog de Playback (`checkAudioPlayback`)
+Executa a cada 500 ms para streams de rádio:
+- Detecta se `audio.currentTime` está avançando
+- Timeouts: inicial 10 s, travamento 2 s, cooldown entre recuperações 10 s
+- Se travar: tenta reconectar com cache bust (`?_watchdog=timestamp`)
+- `playbackGeneration` evita race conditions entre trocas rápidas de estação
+
+### 5. Playlist e Estações
+- `renderList()`: renderiza cada estação com número, nome, badge tipo (`📻 RÁDIO` / `▶ YOUTUBE`), gênero, e tag `PADRÃO` ou `MINHA`
+- Estações fixas não podem ser excluídas; personalizadas têm botão `✕`
+- `playStation(i)`: troca estação, atualiza `nowPlaying`, render lista
+- Adicionar estação: formulário com nome + URL; YouTube é parseado automaticamente; rádio é validado com `new URL()`
+- `tabClear`: remove só estações pessoais (mantém as 3 padrão)
+- `exportBtn`: gera download de `neonhead-estacoes.json` com a lista completa
+
+### 6. Osciloscópio (Canvas)
+- Loop `requestAnimationFrame` (`draw()`)
+- Se YouTube ativo: exibe texto "YOUTUBE • MINIATURA ATIVA"
+- Se rádio tocando e analisador disponível: desenha onda do `getByteTimeDomainData`
+- Se pausado/sem áudio: desenha onda senoidal simulada (`Math.sin`)
+- Overlay de status: "LIVE • OSCILOSCÓPIO" ou "PAUSADO", nome da estação
+
+### 7. Relógio
+- Atualiza `#clock` a cada 1 s com `toLocaleTimeString('pt-BR')`
+
+### 8. Fluxo de Inicialização
+- `playStation(0)` no final: prepara a primeira estação (YouTube padrão) e aguarda clique do usuário
+
+---
+
+## Plano do `README.md`
+
+O documento terá as seguintes seções:
+
+1. **Título e descrição curta** (NEON HEAD - Web Player)
+2. **Demo / Preview** (descrição visual da interface)
+3. **Funcionalidades** (lista de features)
+4. **Como usar** (instruções passo a passo)
+5. **Adicionar estações personalizadas** (YouTube e rádio)
+6. **Estrutura do projeto** (arquivos)
+7. **Tecnologias** (HTML5, CSS3, Canvas API, Web Audio API, localStorage)
+8. **Notas importantes** (bloqueio de autoplay, embed do YouTube, streams CORS, modo local `file://`)
+9. **Licença / Créditos**
+
+---
+
